@@ -22,6 +22,7 @@ venv/
 env/
 ENV/
 environments/
+pyscience/
 
 # MLX outputs and logs
 *.log
@@ -101,3 +102,7 @@ benchmarking/*/data/
 benchmarking/*/outputs/
 **/test-data/
 **/fuzzing-data/
+
+# Ignore project datasets folder (moved to workspace/datasets)
+datasets/
+PyScience/datasets/

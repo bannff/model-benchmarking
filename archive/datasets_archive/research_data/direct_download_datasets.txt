@@ -1,0 +1,26 @@
+DIRECTLY DOWNLOADABLE CYBERSECURITY DATASETS:
+
+1. CICIDS2017 Dataset (University of New Brunswick)
+   - URL: https://www.unb.ca/cic/datasets/ids-2017.html
+   - Size: ~8GB
+   - Description: Network intrusion detection dataset
+
+2. ADFA Intrusion Detection Dataset (UNSW)
+   - URL: https://www.unsw.adfa.edu.au/unsw-canberra-cyber/cybersecurity/ADFA-IDS-Datasets/
+   - Size: ~2GB
+   - Description: Host-based intrusion detection using system calls
+
+3. CTU-13 Botnet Dataset (Czech Technical University)
+   - URL: https://www.stratosphereips.org/datasets-ctu13
+   - Size: ~3GB
+   - Description: Botnet traffic detection dataset
+
+4. DREBIN Android Malware Dataset
+   - URL: https://www.sec.cs.tu-bs.de/\~danarp/drebin/
+   - Size: ~1GB
+   - Description: Android malware detection features
+
+5. KDD Cup 1999 Dataset (Classic)
+   - URL: http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
+   - Size: ~200MB
+   - Description: Network intrusion detection (older but standard)
