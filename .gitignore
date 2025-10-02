@@ -111,3 +111,7 @@ PyScience/models/
 
 # Local VS Code extension state files
 .continue/
+
+# Ignore project adapters after moving into workspace models
+adapters/
+PyScience/adapters/
