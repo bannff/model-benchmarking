@@ -106,3 +106,5 @@ benchmarking/*/outputs/
 # Ignore project datasets folder (moved to workspace/datasets)
 datasets/
 PyScience/datasets/
+models/
+PyScience/models/
