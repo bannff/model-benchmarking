@@ -1,0 +1,60 @@
+# Falcon-Mamba 7B Training Configuration
+# Optimized for Apple Silicon MLX training
+
+model:
+  name: "mlx-community/falcon-mamba-7b-4bit-instruct"
+  architecture: "falcon_mamba"
+  parameters: "7.27B"
+  context_length: 8192
+  quantization: "4-bit"
+
+training:
+  method: "LoRA"
+  batch_size: 16              # Reduced for 7B model memory constraints
+  learning_rate: 3e-5         # Optimized for Mamba architecture
+  optimizer: "adamw"
+  iterations: 5000            # Adjusted for larger model
+  max_sequence_length: 2048   # Balance between quality and memory
+  
+  # Scheduling
+  steps_per_report: 10
+  steps_per_eval: 50
+  save_every: 250
+  
+  # LoRA specific
+  num_layers: -1              # Train all layers
+  
+  # Optimization
+  grad_checkpoint: true
+  seed: 42
+
+memory:
+  mlx_memory_limit: "25GB"    # Higher for 7B model
+  mlx_cache_limit: "25GB"
+  buffer_cache_limit: 0
+  mps_watermark_ratio: 0.0
+
+dataset:
+  path: "/Users/danielrodrigo/Workspace/PyScience/datasets/primus_training_FINAL"
+  type: "cybersecurity"
+  size: "1M+ pairs"
+  format: "jsonl"
+
+performance:
+  expected_memory_usage: "20-25GB"
+  training_speed: "slower than TinyLlama"
+  quality_improvement: "significant"
+  
+comparison_with_tinyllama:
+  parameters: "7.27B vs 1.1B (6.6x larger)"
+  memory_usage: "25GB vs 12GB (2x more)"
+  training_time: "~3x longer per iteration"
+  expected_quality: "Much higher base knowledge"
+  cybersecurity_performance: "Superior retention and reasoning"
+
+next_steps:
+  - "Monitor training progress"
+  - "Compare loss curves with TinyLlama"
+  - "Evaluate cybersecurity knowledge quality"
+  - "Test on complex security scenarios"
+  - "Consider full fine-tuning if LoRA insufficient"

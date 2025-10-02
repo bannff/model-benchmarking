@@ -1,0 +1,39 @@
+# MLX-LM LoRA Training Configuration - 2025 Optimized
+# Mamba 1.4B Cybersecurity Fine-tuning with Fixed Dataset Format
+
+# Model and Data Paths
+model: models/mamba-1.4b-mlx
+data: datasets/primus_training/train_mlx.jsonl
+valid_data: datasets/primus_training/valid_mlx.jsonl
+
+# Training Settings
+train: true
+fine_tune_type: lora
+batch_size: 4                    # Reduced for stability with Mamba
+iters: 5000                      # Reasonable number for large dataset
+val_batches: 25
+learning_rate: 2e-4              # Good starting point for LoRA
+steps_per_report: 50
+steps_per_eval: 200
+save_every: 500                  # Save checkpoints frequently
+max_seq_length: 512
+seed: 42
+
+# LoRA Configuration (2025 best practices)
+lora_parameters:
+  rank: 16                       # Conservative rank for stability
+  dropout: 0.1                   # Standard dropout
+  scale: 32.0                    # Alpha = 2 * rank for good balance
+
+# Optimization Settings
+optimizer: adamw
+warmup_steps: 100               # Short warmup for large dataset
+weight_decay: 0.01              # Light regularization
+grad_checkpoint: true           # Memory optimization
+
+# Output Configuration
+adapter_path: ./cybersecurity_mamba_adapter
+
+# Advanced Settings for Mamba SSM
+mask_prompt: false              # Disable for completion-style training
+num_layers: 16                  # Target middle layers for adaptation
