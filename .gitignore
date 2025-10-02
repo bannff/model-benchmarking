@@ -108,3 +108,6 @@ datasets/
 PyScience/datasets/
 models/
 PyScience/models/
+
+# Local VS Code extension state files
+.continue/

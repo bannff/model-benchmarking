@@ -1,8 +1,0 @@
-name: AWS Documentation MCP
-version: 0.0.1
-schema: v1
-mcpServers:
-  - name: AWS Documentation MCP
-    command: uvx
-    args:
-      - awslabs.aws-documentation-mcp-server@latest
