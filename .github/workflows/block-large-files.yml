@@ -1,0 +1,27 @@
+name: Block large files
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  check-large-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find large files
+        run: |
+          # fail if any committed file in the PR is larger than 50MB
+          MAX=52428800
+          set -e
+          git fetch --depth=1 origin ${{ github.base_ref }} || true
+          for f in $(git diff --name-only origin/${{ github.base_ref }}...HEAD); do
+            if [ -f "$f" ]; then
+              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+              if [ "$size" -gt "$MAX" ]; then
+                echo "File $f is too large ($size bytes) — please use Git LFS or external storage." >&2
+                exit 1
+              fi
+            fi
+          done
+          echo "No large files found."

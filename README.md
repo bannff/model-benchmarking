@@ -1,3 +1,123 @@
+# Model Benchmarking — Unified Cybersecurity Evaluation Suite
+
+This repository brings three complementary cybersecurity benchmarking suites together so security teams and researchers can evaluate language models with a single, consistent tooling surface.
+
+In one place you'll find:
+- CS-Eval: question-and-answer style benchmarks (text-based)
+- CVE-Bench: challenge-driven fixtures and vulnerable images (containerized)
+- CyberGym: interactive scenario simulations (containerized/hosted)
+
+Why a unified suite
+-------------------
+- Broad coverage: combine knowledge/Q&A checks, interactive scenario-based testing, and challenge exploitation/mitigation exercises.
+- Reuse and automation: a single CLI/runner can start suites, orchestrate containers, and aggregate scores.
+- Reproducibility: run each benchmark inside a container for consistent, safe evaluation.
+
+Repository layout (high level)
+-----------------------------
+- `benchmarking/` — shared evaluation runners, example configs, and utilities.
+- `benchmark-test/` — development fixtures and local harnesses for the three suites:
+  - `benchmark-test/cs-eval/` — CS-Eval content and runner scripts.
+  - `benchmark-test/cve-bench/` — CVE challenge fixtures (DB dumps, images, graders).
+  - `benchmark-test/cybergym/` — CyberGym scenarios and example orchestrations.
+- `configs/` — example config files for running experiments.
+- `environments/` — virtualenv and environment setup helpers.
+- `.gitattributes` — rules for tracking large binary artifacts (e.g., `*.arrow`, `*.parquet`, `*.bin`).
+
+Important note about moved assets
+---------------------------------
+To keep this repository focused and the git history small, heavy dataset preprocessing scripts and larger docs were moved out of the repo into the parent workspace. If you need them locally:
+
+- `scripts/` (moved): /Users/danielrodrigo/Workspace/datasets/scripts
+- `docs/` (moved): /Users/danielrodrigo/Workspace/models/docs
+
+These moves were intentional. The challenge fixtures remain here, but many of the large dataset blobs were migrated to pointer-based storage to avoid bloating git history. See `.gitattributes` for the tracked binary patterns.
+
+Short blurbs on each suite
+--------------------------
+- CS-Eval
+  - Type: question-and-answer (closed-form and open-form prompts)
+  - Use-case: test knowledge, instruction following, and reasoning on textual prompts.
+  - Integration: very scriptable — you can feed prompt lists to a model client and collect structured outputs for automated scoring.
+
+- CVE-Bench
+  - Type: challenge fixtures, vulnerable appliances, and grader harnesses.
+  - Use-case: evaluate model-assisted exploitation reasoning, mitigation suggestions, and step-by-step exploit descriptions.
+  - Integration: typically containerized; graders often expect helper scripts in the runtime image (see `benchmark-test/cve-bench/README.md`). Many challenge fixtures include SQL dumps and configuration strings that reference script paths — these are part of the original fixtures.
+
+- CyberGym
+  - Type: interactive, scenario-based simulated environments (often multi-host or service networks).
+  - Use-case: measure a model's ability to orchestrate multi-step actions, persistence, detection evasion, or defense strategies via API interactions.
+  - Integration: run as an isolated container or VM, and expose a stable API endpoint the model can query.
+
+Getting started — quick developer steps
+--------------------------------------
+1. Install dependencies
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. Run a CS-Eval job (text-only example)
+
+```bash
+python3 benchmarking/cs-eval/run_evaluation.py --model <model-id-or-path> --output results/cs-eval/<run-name>
+```
+
+3. Run a CVE-Bench challenge (containerized, high-level)
+
+```bash
+# Build or pull the challenge runtime image, then start the container
+docker compose -f benchmark-test/cve-bench/docker-compose.yml up --build
+# Provide runtime helper scripts to the container if required (mount /evaluator/scripts)
+```
+
+4. Run CyberGym (interactive)
+
+```bash
+# Start the CyberGym container and expose API endpoints
+docker compose -f benchmark-test/cybergym/docker-compose.yml up --build
+# Use the provided orchestrator to drive scenario steps via API.
+```
+
+Runtime helper scripts and embedded references
+---------------------------------------------
+Some graders and challenge images expect helper scripts (for example: `/evaluator/scripts/run_lollms.sh`). Provide these at container startup by mounting them into the container or baking them into the runtime image. Many SQL dumps contain strings like `<path_cacti>/scripts/...` — these are part of the challenge fixtures and intentionally left unchanged.
+
+Large files and repository hygiene
+---------------------------------
+- The repo uses `.gitattributes` to track large dataset patterns and avoid committing raw binary dataset shards into git history. If you add large artifacts, either:
+  - Track them via the `.gitattributes`/pointer mechanism, or
+  - Host them externally (S3/Hugging Face/artifact storage) and store only pointers in this repo.
+
+Working with Git LFS (for contributors)
+--------------------------------------
+After cloning this repository, run these commands to ensure LFS objects are fetched correctly:
+
+```bash
+git lfs install
+git lfs pull --all
+```
+
+If collaborators do not install Git LFS they will see pointer files (not the binary content) in place of large files. Add this to your onboarding instructions or CI checks.
+
+Security & safety
+-----------------
+This repository contains intentionally vulnerable challenge content. Always run CVE-Bench and CyberGym workloads in isolated networks or disposable environments. Do not expose challenge instances to untrusted networks.
+
+Contributing & roadmap
+----------------------
+- Unified CLI to run suites and aggregate results
+- UI to visualize runs and scoring dashboards
+- CI checks and pre-commit hooks to block accidental large file commits
+
+If you want me to add CI/pre-commit hooks or create the unified runner CLI, say the word and I will scaffold them.
+
+---
+
+For suite-level READMEs (short notes or runtime tips), see the files under `benchmark-test/` (added alongside the challenges).
 # 🧩 Agentic Dataset Pipeline for MLX-LM (Cybersecurity)
 
 This workspace provides a robust, agentic, and truth-promoting dataset pipeline for MLX-LM fine-tuning. The pipeline ensures:
@@ -73,150 +193,52 @@ PyScience/
 │   ├── configs/
 │   ├── data/
 │   ├── models/
-│   ├── scripts/
-│   ├── docs/
-│   └── ...
-├── datasets/               # Shared and legacy datasets (JSONL, tar.gz, zip)
-│   ├── primus_training/    # Main training/validation sets
-│   ├── mlx_models/         # Base models (e.g., TinyLlama MLX)
-│   ├── pattern_identification_examples.jsonl
-│   ├── comprehensive_cybersec_dataset.jsonl
-│   ├── enhanced_cybersec_dataset.jsonl
-│   └── ...
-├── scripts/                # Central utility scripts (cleaning, conversion, etc.)
-├── configs/                # Central configs (shared or legacy)
-├── docs/                   # Documentation and guides
-├── archive/                # Archived scripts, configs, datasets, and research
-│   ├── data/
-│   ├── configs/
-│   ├── docs/
-│   ├── datasets_archive/   # Former datasets/archive/ content
-│   └── ...
-├── environments/           # Python environments
-│   └── hf-llm-env/
-└── README.md               # Project overview (this file)
-```
+````markdown
+# Model-Benchmarking — Cybersecurity Model Evaluation Suite
 
-**Key Points:**
-- Each major project (e.g., `mamba`, `falcon_mamba`) is self-contained and follows MLX-LM best practices.
-- Shared datasets, scripts, and configs are at the top level for easy access.
-- All legacy, research, and unused content is preserved in `/archive` for future reference.
-- Documentation is centralized in `/docs/` and per-project as needed.
+This repository hosts evaluation harnesses, challenge datasets, and safe sandboxing scaffolds for benchmarking language models on cybersecurity tasks (CVE reasoning, exploit analysis, and challenge-style tasks).
 
+Purpose:
+- Provide reproducible evaluation runners for CS-Eval, CVE-Bench, and CyberGym-style challenges.
+- Keep challenge assets and evaluation harnesses together while excluding large dataset artifacts and preprocessing tools from the public repo.
 
-## 🗃️ Datasets Available
+Note about moved assets
+- The project's dataset pre-processing scripts and auxiliary docs have been moved out of this repository to the parent workspace by request to keep the repo focused on benchmarking harnesses and challenge content:
+  - scripts folder (moved): /Users/danielrodrigo/Workspace/datasets/scripts
+  - docs folder (moved): /Users/danielrodrigo/Workspace/models/docs
 
-### Main Datasets
-- **comprehensive_cybersec_dataset.jsonl** — Large, cleaned cybersecurity dataset
-- **enhanced_cybersec_dataset.jsonl** — Enhanced, instruction-tuned dataset
-- **pattern_identification_examples.jsonl** — Pattern identification examples
-- **primus_training/train.jsonl** — Main training set
-- **primus_training/valid.jsonl** — Main validation set
-- **primus_training/train_enhanced.jsonl** — Enhanced training set
-- **primus_training/valid_enhanced.jsonl** — Enhanced validation set
+  These moves were committed and pushed after migrating large dataset binaries to Git LFS. See `.gitattributes` in the repo root for tracked binary patterns (e.g. *.arrow, *.parquet, *.bin).
 
-### Model Files
-- **mlx_models/tinyllama_mlx/** — TinyLlama model files (MLX format)
+Quick start (what this repo contains)
+- `benchmarking/` — evaluation runners and configs for public benchmarks
+- `benchmark-test/` — local challenge payloads and test harnesses (CVE-Bench fixtures used for CI/local testing)
+- `configs/` — example configs for running evaluations
+- `scripts/` — lightweight runner scripts (small helpers only — heavy dataset processing tools are intentionally moved out)
+- `results/` — output from prior benchmark runs
 
-### Format
-- All datasets are MLX-LM compatible JSONL with instruction-response pairs or task-specific fields.
+How to run an evaluation (example)
+1. Install Python deps: `pip install -r requirements.txt`
+2. Run a benchmark runner (example for CS-Eval):
+   - `python3 benchmarking/cs-eval/run_evaluation.py --model <model-id-or-path> --output results/cs-eval/<run-name>`
 
-## 🤖 Trained Models
+Notes on large files
+- Large dataset shards and binary artifacts have been migrated to Git LFS and/or moved out of the repository. If you need to work with large datasets, keep them in a separate storage location (S3, Hugging Face datasets, or a parent workspace) and avoid committing raw archives to this repo.
 
+Sanitization of embedded challenge data
+- Some challenge database dumps (under `benchmark-test/cve-bench/.../db/`) intentionally contain textual references to external script paths (these are part of challenge payloads and not active repo scripts). If you want these sanitized or annotated, I can either:
+  1. Replace those occurrences with a short placeholder, or
+  2. Add an explanatory README in `benchmark-test/cve-bench/` clarifying these are challenge DB dumps and that `scripts/` was moved.
 
-### Example: TinyLlama Cybersecurity Model
-- **Base Model**: TinyLlama-1.1B-Chat-v1.0 (MLX format)
-- **Training Method**: LoRA (Low-Rank Adaptation)
-- **Specialization**: Cybersecurity questions and analysis
-- **Adapters**: See project or `/archive` for LoRA adapters
+Contributing
+- To add a new model evaluation, create a new directory under `benchmarking/` with a small runner script, a config, and test fixtures.
 
+Safety and sandboxing
+- CVE-Bench and CyberGym evaluations include sandbox notes and docker configurations — do not run untrusted challenge targets without proper isolation.
 
-### Training Configuration (Example)
-- **Batch Size**: 1 (memory optimized)
-- **Max Sequence Length**: 256
-- **LoRA Rank**: 16
-- **Training Steps**: 500
-- **Validation**: Every 50 steps
-
-
-## 🛠️ Environment Setup
-
-The Python environment is pre-configured with:
-- **MLX-LM**: Apple Silicon optimized training
-- **HuggingFace Transformers**: Model and dataset access
-- **HuggingFace Datasets**: Dataset processing
-- **Pandas, NumPy**: Data manipulation
-- **All dependencies**: For MLX training and inference
-
-### Activate Environment
-```bash
-source environments/hf-llm-env/bin/activate
-```
-
-## 📊 Model Performance
-
-The trained model achieved excellent convergence:
-- **Training Loss**: Converged to ~0.000
-- **Validation Loss**: Converged to ~0.000
-- **Training Duration**: ~500 steps
-- **Memory Usage**: Optimized for Apple Silicon (8-16GB RAM)
-
-## 🔍 Usage Examples
-
-### Cybersecurity Questions
-Try asking the model about:
-- SQL injection attacks and prevention
-- Network security best practices
-- Malware analysis techniques
-- Incident response procedures
-- Cryptography concepts
-- Vulnerability assessment
-
-### Chat Commands
-- `q` - Exit chat
-- `r` - Reset conversation
-- `h` - Show help
-
-## 📝 Training Log
-
-The model was trained using the following process:
-1. Downloaded and processed multiple cybersecurity datasets
-2. Converted base TinyLlama model to MLX format
-3. Combined datasets into MLX-LM compatible format
-4. Trained using LoRA with memory-optimized settings
-5. Validated convergence through loss monitoring
-6. Saved final adapter weights for inference
-
-
-## 🔄 Re-training
-
-To retrain or continue training (example for TinyLlama):
-```bash
-cd PyScience
-source environments/hf-llm-env/bin/activate
-
-mlx_lm.lora \
-  --model datasets/mlx_models/tinyllama_mlx \
-  --train \
-  --data datasets/primus_training \
-  --iters 500 \
-  --save-every 50 \
-  --adapter-path archive/data/mlx_adapters_v3 \
-  --batch-size 1 \
-  --lora-layers 16 \
-  --max-seq-length 256
-```
-
-## 🎯 Next Steps
-
-
-1. **Test Model**: Use the interactive chat to validate cybersecurity responses
-2. **Evaluate Performance**: Test on held-out cybersecurity questions
-3. **Export Model**: Convert adapters to other formats if needed
-4. **Scale Training**: Increase batch size or sequence length for better performance
-5. **Add More Data**: Incorporate additional cybersecurity datasets
-6. **Explore Archives**: Review `/archive` for legacy scripts, configs, and research data
+Contact
+- If you need the dataset preprocessing scripts or full documentation that were moved, find them at the parent workspace paths listed above.
 
 ---
 
-*This workspace is optimized for Apple Silicon (M1/M2/M3) using MLX-LM for efficient training and inference.*
+````
+## 🤖 Trained Models
