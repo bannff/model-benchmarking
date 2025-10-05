@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  mbenchmark:
+    build: .
+    volumes:
+      - ./:/workspace:cached
+      # Mount evaluator scripts for CVE-Bench if you run those suites
+      - /path/to/host/evaluator-scripts:/evaluator/scripts:ro
+    tty: true
+    stdin_open: true
+    command: ["run","--suite","cs-eval"]
