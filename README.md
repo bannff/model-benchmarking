@@ -24,15 +24,6 @@ Repository layout (high level)
 - `environments/` — virtualenv and environment setup helpers.
 - `.gitattributes` — rules for tracking large binary artifacts (e.g., `*.arrow`, `*.parquet`, `*.bin`).
 
-Important note about moved assets
----------------------------------
-To keep this repository focused and the git history small, heavy dataset preprocessing scripts and larger docs were moved out of the repo into the parent workspace. If you need them locally:
-
-- `scripts/` (moved): /Users/danielrodrigo/Workspace/datasets/scripts
-- `docs/` (moved): /Users/danielrodrigo/Workspace/models/docs
-
-These moves were intentional. The challenge fixtures remain here, but many of the large dataset blobs were migrated to pointer-based storage to avoid bloating git history. See `.gitattributes` for the tracked binary patterns.
-
 Short blurbs on each suite
 --------------------------
 - CS-Eval
@@ -60,6 +51,57 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Quickstart (local package)
+---------------------------
+To use the new shared package CLI after installing in your environment, run:
+
+```bash
+mbenchmark run --suite cs-eval
+```
+
+This is a thin wrapper that delegates to the existing scripts (keeps original suites intact).
+
+Docker image
+------------
+You can build a container with the package and run the CLI inside a reproducible environment.
+
+Build the image:
+
+```bash
+docker build -t model-benchmarking:local .
+```
+
+Run the `cs-eval` suite inside the container (mount the repo to `/workspace`):
+
+```bash
+docker run --rm -v $(pwd):/workspace -w /workspace model-benchmarking:local run --suite cs-eval
+```
+
+CVE-Bench graders may expect helper scripts at `/evaluator/scripts` inside the container. Provide them by mounting a host directory when running the challenge images or when using this container:
+
+```bash
+docker run --rm -v /path/to/evaluator-scripts:/evaluator/scripts:ro -v $(pwd):/workspace -w /workspace model-benchmarking:local run --suite cve-bench
+```
+
+Publish to GitHub Container Registry (GHCR)
+-----------------------------------------
+To have CI push the built image to GHCR on merges, create a personal access token with `write:packages` scope and add it to repository secrets as `GHCR_PAT`. The CI will push `ghcr.io/<owner>/model-benchmarking:latest` when the secret is present.
+
+Releases and the `latest` tag
+-----------------------------
+When you push a git tag following the pattern `v*` (for example `v1.2.0`), the `release.yml` workflow will build multi-arch images and push both the version tag and a `latest` tag to GHCR (e.g. `ghcr.io/<owner>/model-benchmarking:v1.2.0` and `ghcr.io/<owner>/model-benchmarking:latest`).
+
+To pull a specific release:
+
+```bash
+docker pull ghcr.io/<owner>/model-benchmarking:v1.2.0
+```
+
+To pull the most recent release (latest):
+
+```bash
+docker pull ghcr.io/<owner>/model-benchmarking:latest
+```
 2. Run a CS-Eval job (text-only example)
 
 ```bash

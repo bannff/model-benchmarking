@@ -1,0 +1,9 @@
+model:
+  id: "phi3-cybersec"
+  device: "cpu"
+benchmark:
+  name: "cs-eval"
+  max_questions: 10
+output:
+  dir: "results/"
+  format: "json"
