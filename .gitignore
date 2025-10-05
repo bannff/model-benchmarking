@@ -115,3 +115,6 @@ PyScience/models/
 # Ignore project adapters after moving into workspace models
 adapters/
 PyScience/adapters/
+
+# Ignore Beast Mode instructions file only (keep other .github contents tracked)
+.github/instructions/Beast Mode.instructions.md
