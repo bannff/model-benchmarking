@@ -158,84 +158,12 @@ Contributing & roadmap
 If you want me to add CI/pre-commit hooks or create the unified runner CLI, say the word and I will scaffold them.
 
 ---
-
 For suite-level READMEs (short notes or runtime tips), see the files under `benchmark-test/` (added alongside the challenges).
-# 🧩 Agentic Dataset Pipeline for MLX-LM (Cybersecurity)
 
-This workspace provides a robust, agentic, and truth-promoting dataset pipeline for MLX-LM fine-tuning. The pipeline ensures:
-- All data is in the recommended `messages` array format (chat-style, user/assistant turns)
-- Deduplication, English-only filtering, and removal of invalid/bad values
-- Automatic splitting into `train.jsonl` and `valid.jsonl` for MLX-LM
+Codespaces / Devcontainer
+-------------------------
+This repository includes a `.devcontainer` to make Codespaces or local devcontainers easier to use. The devcontainer config sets up Python 3.11, installs developer deps, and configures your git author identity inside the container so commits from Codespaces have the correct author metadata. If you prefer not to commit a devcontainer to the repo, let me know and I can revert that file and instead document the recommended setup in the README.
 
-## How to Use the Pipeline
-
-1. Place your raw cybersecurity Q&A or chat-style JSONL file in the desired project folder.
-2. Run the combined script to convert, dedupe, validate, and split your data:
-
-```bash
-pip3 install langdetect
-python3 scripts/convert_and_validate_agentic_dataset.py <input.jsonl> [valid_frac]
-```
-
-- By default, this will overwrite `train.jsonl` and `valid.jsonl` in the same folder as your input file.
-- The script expects each line in the input to have either `user`/`assistant` or `question`/`answer` fields.
-- The output is MLX-LM compatible and ready for fine-tuning.
-
-### Example
-
-```bash
-python3 scripts/convert_and_validate_agentic_dataset.py datasets/my_raw_cybersec.jsonl 0.1
-# Produces: datasets/train.jsonl and datasets/valid.jsonl
-```
-
-### Output Format (for both train and valid)
-```jsonl
-{"messages": [
-    {"role": "user", "content": "What is the latest CVE for OpenSSL?"},
-    {"role": "assistant", "content": "I'm not sure of the latest CVE for OpenSSL. Let me research that for you and get back with an accurate answer."}
-]}
-```
-
-**This ensures your LLM is trained to be both cybersecurity-savvy and agentic/truthful.**
-# PyScience - Python-based Machine Learning for Cybersecurity
-
-This folder contains all Python-based machine learning workflows, datasets, models, and environments for cybersecurity research and model training.
-
-## 🚀 Quick Start
-
-### Interactive Chat with Trained Model
-```bash
-cd /Users/danielrodrigo/Workspace/PyScience
-source environments/hf-llm-env/bin/activate
-mlx_lm.chat --model datasets/mlx_models/tinyllama_mlx --adapter-path datasets/cybersecurity_finetuned_models/mlx_adapters_v2 --max-tokens 512
-```
-
-### Alternative Chat Commands
-```bash
-# Using the latest checkpoint
-mlx_lm.chat --model datasets/mlx_models/tinyllama_mlx --adapter-path datasets/cybersecurity_finetuned_models/mlx_adapters_v2/0000500_adapters.safetensors --max-tokens 512
-
-# For longer responses
-mlx_lm.chat --model datasets/mlx_models/tinyllama_mlx --adapter-path datasets/cybersecurity_finetuned_models/mlx_adapters_v2 --max-tokens 1024
-```
-
-
-## 📁 Directory Structure (2025, Modular MLX-LM Projects)
-
-```
-PyScience/
-├── mamba/                  # Mamba Cybersecurity Project (self-contained)
-│   ├── configs/            # Config files (YAML, JSON)
-│   ├── datasets/           # Project-specific dataset scripts
-│   ├── models/             # Model weights/checkpoints
-│   ├── scripts/            # Training, chat, and utility scripts
-│   └── validation/         # Validation and analysis scripts
-│   └── README.md           # Project-specific readme
-├── falcon_mamba/           # Falcon-Mamba Project (self-contained)
-│   ├── configs/
-│   ├── data/
-│   ├── models/
-````markdown
 # Model-Benchmarking — Cybersecurity Model Evaluation Suite
 
 This repository hosts evaluation harnesses, challenge datasets, and safe sandboxing scaffolds for benchmarking language models on cybersecurity tasks (CVE reasoning, exploit analysis, and challenge-style tasks).
@@ -245,11 +173,7 @@ Purpose:
 - Keep challenge assets and evaluation harnesses together while excluding large dataset artifacts and preprocessing tools from the public repo.
 
 Note about moved assets
-- The project's dataset pre-processing scripts and auxiliary docs have been moved out of this repository to the parent workspace by request to keep the repo focused on benchmarking harnesses and challenge content:
-  - scripts folder (moved): /Users/danielrodrigo/Workspace/datasets/scripts
-  - docs folder (moved): /Users/danielrodrigo/Workspace/models/docs
-
-  These moves were committed and pushed after migrating large dataset binaries to Git LFS. See `.gitattributes` in the repo root for tracked binary patterns (e.g. *.arrow, *.parquet, *.bin).
+- The project's dataset pre-processing scripts and auxiliary docs have been moved out of this repository to the parent workspace. If you need them, they live at the parent workspace location (for example `/Users/danielrodrigo/Workspace/datasets/`).
 
 Quick start (what this repo contains)
 - `benchmarking/` — evaluation runners and configs for public benchmarks
@@ -257,7 +181,6 @@ Quick start (what this repo contains)
 - `configs/` — example configs for running evaluations
 - `scripts/` — lightweight runner scripts (small helpers only — heavy dataset processing tools are intentionally moved out)
 - `results/` — output from prior benchmark runs
-
 How to run an evaluation (example)
 1. Install Python deps: `pip install -r requirements.txt`
 2. Run a benchmark runner (example for CS-Eval):
