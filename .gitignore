@@ -116,5 +116,5 @@ PyScience/models/
 adapters/
 PyScience/adapters/
 
-# Ignore Beast Mode instructions file only (keep other .github contents tracked)
+# Ignore Beast Mode instructions file only
 .github/instructions/Beast Mode.instructions.md
