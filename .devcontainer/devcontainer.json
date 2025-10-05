@@ -1,0 +1,21 @@
+{
+  "name": "Model Benchmarking Codespace",
+  "dockerFile": "../Dockerfile",
+  "context": "..",
+  "workspaceFolder": "/workspace",
+  "runArgs": ["--init"],
+  "postCreateCommand": "git config --global user.name \"Daniel Rodrigo\" && git config --global user.email \"bannff@users.noreply.github.com\" && pip install --upgrade pip setuptools wheel && pip install -r requirements-dev.txt || pip install . || true",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "github.vscode-pull-request-github"
+      ]
+    }
+  },
+  "remoteUser": "root"
+}

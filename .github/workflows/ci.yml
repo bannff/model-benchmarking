@@ -56,11 +56,11 @@ jobs:
           push: false
           tags: model-benchmarking:ci
 
-      - name: Publish to GHCR (if configured)
-        if: secrets.GHCR_PAT
+      - name: Publish to GHCR (uses GITHUB_TOKEN, optional GHCR_PAT fallback)
         env:
-          CR_PAT: ${{ secrets.GHCR_PAT }}
+          CR_PAT: ${{ secrets.GHCR_PAT || github.token }}
         run: |
-          echo $CR_PAT | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          # Use the provided GHCR_PAT if set, otherwise GITHUB_TOKEN (works for in-repo publishing)
+          echo "$CR_PAT" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker tag model-benchmarking:ci ghcr.io/${{ github.repository_owner }}/model-benchmarking:latest
           docker push ghcr.io/${{ github.repository_owner }}/model-benchmarking:latest
