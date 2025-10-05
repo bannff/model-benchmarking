@@ -205,5 +205,3 @@ Contact
 
 ---
 
-````
-## 🤖 Trained Models
