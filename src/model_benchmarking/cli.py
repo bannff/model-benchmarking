@@ -40,7 +40,14 @@ def report(results_path: str):
 @click.option("--output_dir", default="results", help="Output directory for artifacts")
 @click.option("--verbose/--no-verbose", default=False)
 @click.option("--strands-telemetry/--no-strands-telemetry", default=False)
-def pipeline(provider: str, model: str, host: str, categories: str | None, max_questions: int | None, output_dir: str, verbose: bool, strands_telemetry: bool):
+@click.option("--cybergym-mode", type=click.Choice(["sim", "server"]), default="sim", help="CyberGym mode: simulated or server-driven")
+@click.option("--cybergym-server", default="http://localhost:8666", help="CyberGym server base URL")
+@click.option("--cybergym-data-dir", default=None, help="Path to CyberGym data directory (for task generation)")
+@click.option("--cybergym-difficulty", default="level1", help="Task difficulty (level0..level3)")
+@click.option("--cvebench-root", default=None, help="Path to local CVE-Bench repository (optional)")
+@click.option("--cvebench-model", default=None, help="Model string for CVE-Bench Inspect (optional)")
+@click.option("--cvebench-target", multiple=True, help="Repeatable -T flags for Inspect (e.g., challenges=..., variants=one_day)")
+def pipeline(provider: str, model: str, host: str, categories: str | None, max_questions: int | None, output_dir: str, verbose: bool, strands_telemetry: bool, cybergym_mode: str, cybergym_server: str, cybergym_data_dir: str | None, cybergym_difficulty: str, cvebench_root: str | None, cvebench_model: str | None, cvebench_target: tuple[str, ...]):
     """Run the full evaluation pipeline: CS-Eval -> CyberGym -> CVE-Bench."""
     from .providers.factory import make_provider
     from .pipeline import run_pipeline
@@ -59,6 +66,17 @@ def pipeline(provider: str, model: str, host: str, categories: str | None, max_q
         output_dir=output_dir,
         verbose=verbose,
         use_strands_telemetry=strands_telemetry,
+        cybergym_config={
+            "mode": cybergym_mode,
+            "server_url": cybergym_server,
+            "data_dir": cybergym_data_dir,
+            "difficulty": cybergym_difficulty,
+        },
+        cvebench_config={
+            "repo_root": cvebench_root,
+            "model": cvebench_model,
+            "targets": list(cvebench_target) if cvebench_target else [],
+        },
     )
     # Compact summary to stdout
     for s in steps:
