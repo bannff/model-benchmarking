@@ -1,7 +1,7 @@
 import os
 import subprocess
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
@@ -11,16 +11,14 @@ class BenchmarkResult:
     output_path: Optional[str] = None
 
 
-def _run_script(script_path, args=None):
-    args = args or []
+def _run_script(script_path: str, args: Optional[List[str]] = None) -> int:
+    args = list(args) if args else []
     # run script from repo root so relative paths in scripts continue to work
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     full_script = os.path.join(repo_root, script_path)
     if not os.path.exists(full_script):
         raise FileNotFoundError(full_script)
-    cmd = [full_script] + list(args)
-    # ensure executable
-    os.chmod(full_script, 0o755)
+    cmd = ["python", full_script] + list(args)
     proc = subprocess.run(cmd, cwd=repo_root)
     return proc.returncode
 
@@ -36,8 +34,19 @@ def run_benchmark(suite: str, config_path: Optional[str] = None, test_mode: bool
         # In test mode, return a lightweight deterministic result without shelling out.
         return BenchmarkResult(name=suite, status="ok", output_path=None)
     if suite in ("cs-eval", "cseval"):
-        # call the cs_eval_official.py script
-        rc = _run_script("benchmark-test/cs_eval_official.py")
+        # call the generic cs-eval runner
+        rc = _run_script(
+            "benchmarking/cs-eval/run_evaluation.py",
+            [
+                "--categories",
+                "Network Security",
+                "--max_questions",
+                "2",
+                "--batch_size",
+                "2",
+                "--verbose",
+            ],
+        )
         status = "ok" if rc == 0 else "failed"
         return BenchmarkResult(name="cs-eval", status=status)
     elif suite in ("cybersec-quiz", "quiz", "cybersec"):
@@ -45,8 +54,8 @@ def run_benchmark(suite: str, config_path: Optional[str] = None, test_mode: bool
         status = "ok" if rc == 0 else "failed"
         return BenchmarkResult(name="cybersec_quiz", status=status)
     elif suite in ("cve-bench", "cve"):
-        # use the run helper in cve-bench
-        rc = _run_script("benchmark-test/cve-bench/run", ["eval"])  # default eval
+        # use the run helper in cve-bench once setup
+        rc = _run_script("benchmarking/cve-bench/run", ["eval"])  # default eval
         status = "ok" if rc == 0 else "failed"
         return BenchmarkResult(name="cve-bench", status=status)
     else:
