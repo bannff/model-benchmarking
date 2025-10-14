@@ -85,3 +85,29 @@ class OllamaHttpProvider:
             )
             results.append(r)
         return results
+
+    def generate_text(self, prompt: str) -> str:
+        """Generic text generation for non-MCQ tasks.
+
+        Returns the raw model text or an error string prefixed with 'ERROR: '.
+        """
+        try:
+            resp = requests.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "options": {
+                        "temperature": self.temperature,
+                        "top_p": self.top_p,
+                        "num_predict": self.max_tokens,
+                    },
+                    "stream": False,
+                },
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return (data.get("response", "") or "").strip()
+        except Exception as e:
+            return f"ERROR: {e}"
