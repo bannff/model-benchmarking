@@ -109,7 +109,7 @@ def run_pipeline(
             sample_file=sample_file,
             output_dir=output_dir,
             max_items=max_questions,
-            cybergym_config=locals().get("cybergym_config"),
+            cybergym_config=cybergym_config,
         )
         results.append(
             PipelineStepResult(
@@ -133,8 +133,7 @@ def run_pipeline(
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)  # type: ignore[attr-defined]
         run_cve_bench = getattr(module, "run_cve_bench")
-
-        cb = run_cve_bench(output_dir=output_dir)
+        cb = run_cve_bench(output_dir=output_dir, cvebench_config=cvebench_config)
         results.append(
             PipelineStepResult(
                 name="cve-bench",

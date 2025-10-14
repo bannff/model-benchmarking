@@ -98,12 +98,42 @@ def run_cybergym_with_provider(
         # Simulate/Server submission
         submit_result: Dict[str, Any]
         verify_result: Dict[str, Any]
+        # initialize to satisfy type checkers
+        generated_task: Optional[Dict[str, Any]] = None
         if mode == "server":
             # Create per-task working dir and a submit.sh that echoes JSON (placeholder for real server script)
             task_dir = working_root / str(task_id)
             task_dir.mkdir(parents=True, exist_ok=True)
             poc_path = task_dir / "poc"
             poc_path.write_bytes(text.encode("utf-8", errors="ignore"))
+            # Attempt to generate a real task layout using the local wrapper (no-op if placeholders)
+            try:
+                task_gen_path = cybergym_dir / "task_generation.py"
+                spec_tg = importlib.util.spec_from_file_location("cybergym_task_gen", str(task_gen_path))
+                if spec_tg and spec_tg.loader:
+                    tg_module = importlib.util.module_from_spec(spec_tg)
+                    spec_tg.loader.exec_module(tg_module)  # type: ignore[attr-defined]
+                    gen_func = getattr(tg_module, "generate_cybergym_task", None)
+                    if callable(gen_func):
+                        gen_obj = gen_func(
+                            task_id=str(task_id),
+                            out_dir=str(task_dir),
+                            data_dir=str((cybergym_config or {}).get("data_dir") or (cybergym_dir / "data")),
+                            server=str(server_url),
+                            difficulty=str(difficulty),
+                            agent_id="agent-1",
+                            with_flag=False,
+                        )
+                        # Normalize to dict for JSON serialization
+                        if isinstance(gen_obj, dict):
+                            generated_task = cast(Dict[str, Any], gen_obj)
+                        else:
+                            try:
+                                generated_task = cast(Dict[str, Any], dict(gen_obj))  # type: ignore[arg-type]
+                            except Exception:
+                                generated_task = {"repr": repr(gen_obj)}
+            except Exception:
+                generated_task = None
             submit_sh = task_dir / "submit.sh"
             submit_sh.write_text(
                 "#!/usr/bin/env bash\n"
@@ -131,6 +161,9 @@ def run_cybergym_with_provider(
         ok = (not text.startswith("ERROR:")) and (submit_result.get("exit_code", 0) == 0)
         success_count += 1 if ok else 0
 
+        # ensure generated_task is defined in both branches
+        if mode != "server":
+            generated_task = None
         results.append(
             {
                 "task_id": task_id,
@@ -139,6 +172,7 @@ def run_cybergym_with_provider(
                 "response": text,
                 "submit_result": submit_result,
                 "verify_result": verify_result,
+                "generated_task": generated_task,
                 "success": ok,
             }
         )
