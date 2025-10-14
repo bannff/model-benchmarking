@@ -11,10 +11,12 @@ Outputs:
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, List, Optional, cast
 from pathlib import Path
 import json
 import importlib.util
+import os
+import subprocess
 
 
 def _load_tasks(sample_file: Path) -> List[Dict[str, Any]]:
@@ -42,6 +44,7 @@ def run_cybergym_with_provider(
     sample_file: str,
     output_dir: str,
     max_items: int | None = None,
+    cybergym_config: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     # Lazy import PoC helpers from the scaffold (via file path to avoid sys.path issues)
     cybergym_dir = Path(__file__).resolve().parent / "cybergym"
@@ -77,6 +80,11 @@ def run_cybergym_with_provider(
 
     results: List[Dict[str, Any]] = []
     success_count = 0
+    mode = (cybergym_config or {}).get("mode", "sim")
+    difficulty = (cybergym_config or {}).get("difficulty", "level1")
+    server_url = (cybergym_config or {}).get("server_url", "http://localhost:8666")
+    working_root = Path(output_dir) / "cybergym_tmp"
+    working_root.mkdir(parents=True, exist_ok=True)
     for task in tasks:
         prompt = task.get("vulnerability_description", "")
         task_id = task.get("task_id")
@@ -87,14 +95,40 @@ def run_cybergym_with_provider(
             f"Vulnerability: {prompt}\n\nPoC:"
         )
 
-        # Simulate PoC binary content from text
-        poc_bytes = text.encode("utf-8", errors="ignore")
-        submit_result = cast(Dict[str, Any], submit_cybergym_poc("agent-1", task_id, poc_bytes))
-        # For our stubbed server, verification just echoes an ID; use task_id as placeholder
-        verify_result = cast(Dict[str, Any], verify_cybergym_poc(str(task_id)))
+        # Simulate/Server submission
+        submit_result: Dict[str, Any]
+        verify_result: Dict[str, Any]
+        if mode == "server":
+            # Create per-task working dir and a submit.sh that echoes JSON (placeholder for real server script)
+            task_dir = working_root / str(task_id)
+            task_dir.mkdir(parents=True, exist_ok=True)
+            poc_path = task_dir / "poc"
+            poc_path.write_bytes(text.encode("utf-8", errors="ignore"))
+            submit_sh = task_dir / "submit.sh"
+            submit_sh.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "POC_FILE=${1:-} \n"
+                f"# Intended server URL: {server_url}\n"
+                f"# Intended difficulty: {difficulty}\n"
+                f"echo '{{\"task_id\":\"{task_id}\",\"exit_code\":0,\"output\":\"simulated submit\"}}'\n",
+                encoding="utf-8",
+            )
+            os.chmod(submit_sh, 0o755)
+            proc = subprocess.run([str(submit_sh), str(poc_path)], capture_output=True, text=True, check=False)
+            try:
+                submit_result = json.loads(proc.stdout.strip() or "{}")
+            except json.JSONDecodeError:
+                submit_result = {"task_id": task_id, "exit_code": proc.returncode, "output": proc.stdout}
+            verify_result = {"status": "skipped", "reason": "verification requires live server"}
+        else:
+            # Simulated submission using our stubbed workflow
+            poc_bytes = text.encode("utf-8", errors="ignore")
+            submit_result = cast(Dict[str, Any], submit_cybergym_poc("agent-1", task_id, poc_bytes))
+            verify_result = cast(Dict[str, Any], verify_cybergym_poc(str(task_id)))
 
-        # Heuristic success: non-error text and stub reports present
-        ok = not text.startswith("ERROR:")
+        # Heuristic success: non-error text and submit exit_code==0 if present
+        ok = (not text.startswith("ERROR:")) and (submit_result.get("exit_code", 0) == 0)
         success_count += 1 if ok else 0
 
         results.append(

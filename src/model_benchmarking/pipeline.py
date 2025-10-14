@@ -43,6 +43,8 @@ def run_pipeline(
     output_dir: str = "results",
     verbose: bool = False,
     use_strands_telemetry: bool = False,
+    cybergym_config: Optional[Dict[str, Any]] = None,
+    cvebench_config: Optional[Dict[str, Any]] = None,
 ) -> List[PipelineStepResult]:
     """Run the evaluation pipeline sequentially.
 
@@ -102,7 +104,13 @@ def run_pipeline(
         spec.loader.exec_module(module)  # type: ignore[attr-defined]
         run_cybergym_with_provider = getattr(module, "run_cybergym_with_provider")
 
-        cg = run_cybergym_with_provider(provider, sample_file=sample_file, output_dir=output_dir, max_items=max_questions)
+        cg = run_cybergym_with_provider(
+            provider,
+            sample_file=sample_file,
+            output_dir=output_dir,
+            max_items=max_questions,
+            cybergym_config=locals().get("cybergym_config"),
+        )
         results.append(
             PipelineStepResult(
                 name="cybergym",

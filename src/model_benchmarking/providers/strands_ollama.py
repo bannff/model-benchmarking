@@ -41,7 +41,8 @@ class StrandsOllamaProvider:
                 host=host,
                 model_id=model,
                 temperature=temperature,
-                options={"top_p": top_p, "num_predict": max_tokens},
+                top_p=top_p,
+                max_tokens=max_tokens,
             ),
             callback_handler=callback_handler,
         )
@@ -69,14 +70,29 @@ class StrandsOllamaProvider:
             prompt += f"\nContext: {context}\n"
         prompt += "\nAnswer:"
 
+        provider_metrics: Dict[str, Any] | None = None
         try:
             result = self._agent(prompt)
             text = (getattr(result, "text", None) or getattr(result, "message", None) or str(result)).strip()
+            # Best-effort extraction of metrics in a JSON-safe way
+            if hasattr(result, "metrics"):
+                try:
+                    m = getattr(result, "metrics")
+                    # Collect a compact subset
+                    provider_metrics = {}
+                    for attr in ("prompt_tokens", "completion_tokens", "total_tokens", "latency_ms"):
+                        if hasattr(m, attr):
+                            provider_metrics[attr] = getattr(m, attr)
+                except Exception:
+                    provider_metrics = None
         except Exception as e:  # pragma: no cover - runtime dependent
             text = f"ERROR: {e}"
 
         parsed = self._ensure_choice(text, options)
-        return {"raw_response": text, "parsed_response": parsed}
+        out: Dict[str, Any] = {"raw_response": text, "parsed_response": parsed}
+        if provider_metrics is not None:
+            out["provider_metrics"] = provider_metrics
+        return out
 
     def batch_evaluate(self, questions: List[Dict[str, Any]], batch_size: int = 10) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
