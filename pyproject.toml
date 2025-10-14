@@ -8,7 +8,14 @@ version = "0.1.0"
 description = "Shared model benchmarking utilities and thin shims for existing suites"
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = ["PyYAML", "click"]
+dependencies = [
+	"PyYAML",
+	"click",
+	"datasets",
+	"requests",
+	"strands-agents[ollama,otel]",
+	"strands-agents-tools",
+]
 
 [project.scripts]
 mbenchmark = "model_benchmarking.cli:main"

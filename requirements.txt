@@ -1,3 +1,7 @@
 langdetect
 unidecode
 tqdm
+datasets
+requests
+strands-agents[ollama,otel]
+strands-agents-tools

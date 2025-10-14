@@ -2,7 +2,8 @@
   "name": "Model Benchmarking Codespace",
   "dockerFile": "../Dockerfile",
   "context": "..",
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "overrideCommand": true,
   "runArgs": ["--init"],
   "postCreateCommand": "git config --global user.name \"Daniel Rodrigo\" && git config --global user.email \"bannff@users.noreply.github.com\" && pip install --upgrade pip setuptools wheel && pip install -r requirements-dev.txt || pip install . || true",
   "customizations": {

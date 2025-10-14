@@ -17,6 +17,7 @@ from datetime import datetime
 sys.path.append(str(Path(__file__).parent.parent))
 
 from datasets import load_dataset
+import requests
 from utils.evaluation_helpers import (
     save_results, calculate_metrics, generate_report, 
     ProgressTracker, format_question_for_display
@@ -344,6 +345,10 @@ def main():
     parser.add_argument("--batch_size", type=int, default=10, help="Batch size for evaluation")
     parser.add_argument("--output_dir", type=str, default="results", help="Output directory for results")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    # Model provider options
+    parser.add_argument("--provider", type=str, default="ollama", choices=["ollama"], help="Model provider to use")
+    parser.add_argument("--model", type=str, default=os.getenv("OLLAMA_MODEL", "llama3.2"), help="Model name (e.g., llama3.2)")
+    parser.add_argument("--ollama_host", type=str, default=os.getenv("OLLAMA_HOST", "http://localhost:11434"), help="Ollama server base URL")
     
     args = parser.parse_args()
     
@@ -369,9 +374,104 @@ def main():
     # Load and parse dataset
     benchmark.load_dataset()
     benchmark.parse_questions()
-    
-    print("❌ No model specified. Please use evaluate_phi3.py or implement your own model interface.")
-    print("💡 See README.md for instructions on implementing custom model evaluation.")
+
+    # Implement a basic Ollama provider inline
+    class OllamaProvider:
+        def __init__(self, model: str, base_url: str, max_tokens: int = 256, temperature: float = 0.1, top_p: float = 0.9):
+            self.model = model
+            self.base_url = base_url.rstrip("/")
+            self.max_tokens = max_tokens
+            self.temperature = temperature
+            self.top_p = top_p
+
+        def _ensure_choice(self, text: str, options: Optional[List[str]]) -> str:
+            # Extract a letter A-D from the model output; fallback to first option
+            for ch in ("A", "B", "C", "D"):
+                if ch in text.upper():
+                    return ch
+            return "A"
+
+        def evaluate_question(self, question: str, options: Optional[List[str]] = None, context: str = "", question_type: str = "multiple_choice") -> Dict[str, Any]:
+            prompt = "Answer the following cybersecurity question by returning only the letter of the best choice (A, B, C, or D).\n\n"
+            prompt += f"Question: {question}\n"
+            if options:
+                for i, opt in enumerate(options):
+                    prompt += f"{chr(65+i)}. {opt}\n"
+            if context:
+                prompt += f"\nContext: {context}\n"
+            prompt += "\nAnswer:"
+
+            try:
+                resp = requests.post(
+                    f"{self.base_url}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": prompt,
+                        "options": {
+                            "temperature": self.temperature,
+                            "top_p": self.top_p,
+                            "num_predict": self.max_tokens,
+                        },
+                        "stream": False,
+                    },
+                    timeout=60,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                text = data.get("response", "").strip()
+            except Exception as e:
+                text = f"ERROR: {e}"
+
+            parsed = self._ensure_choice(text, options)
+            return {
+                "raw_response": text,
+                "parsed_response": parsed,
+            }
+
+        def batch_evaluate(self, questions: List[Dict[str, Any]], batch_size: int = 10) -> List[Dict[str, Any]]:
+            results: List[Dict[str, Any]] = []
+            for q in questions:
+                r = self.evaluate_question(q.get("question", ""), q.get("options"), q.get("context", ""), q.get("question_type", "multiple_choice"))
+                results.append(r)
+            return results
+
+    provider = None
+    if args.provider == "ollama":
+        provider = OllamaProvider(
+            model=args.model,
+            base_url=args.ollama_host,
+            max_tokens=benchmark.config["model"].get("max_tokens", 256),
+            temperature=benchmark.config["model"].get("temperature", 0.1),
+            top_p=benchmark.config["model"].get("top_p", 0.9),
+        )
+
+    if provider is None:
+        print("❌ No valid provider configured.")
+        sys.exit(1)
+
+    # Run evaluation
+    result = benchmark.evaluate_model(provider)
+    print("\nDone.")
 
 if __name__ == "__main__":
     main()
+
+# Provide a simple callable for pipeline usage
+def run_cs_eval_with_provider(provider: ModelInterface, *, categories: Optional[List[str]] = None, max_questions: Optional[int] = None, batch_size: int = 10, output_dir: str = "results", verbose: bool = False) -> Dict[str, Any]:
+    """Execute CS-Eval using an injected provider. Returns dict with results and paths.
+
+    This enables orchestrators to reuse CS-Eval without spawning a subprocess.
+    """
+    config_updates: Dict[str, Any] = {
+        "eval": {
+            "categories_to_evaluate": categories,
+            "max_questions_per_category": max_questions,
+            "verbose": verbose,
+        },
+        "model": {"batch_size": batch_size},
+        "output": {"results_dir": output_dir},
+    }
+    bench = CSEvalBenchmark(config_updates)
+    bench.load_dataset()
+    bench.parse_questions()
+    return bench.evaluate_model(provider)
