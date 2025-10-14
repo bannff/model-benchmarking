@@ -266,7 +266,29 @@ python cs-eval/run_evaluation.py --model foundation-sec-8b
 python cybergym/run_evaluation.py --model=/path/to/model --dataset=subset
 ```
 
-## 📊 Deployment Strategy by Use Case
+## � Unified Pipeline CLI
+
+The project includes a single CLI that runs all three benchmarks sequentially (CS-Eval → CyberGym → CVE-Bench). You can select the provider, model, and optional Strands telemetry, and pass per-suite configs.
+
+Key flags:
+
+- Provider and model: `--provider (ollama|strands-ollama)`, `--model llama3.2`
+- CS-Eval: `--categories`, `--max_questions`
+- CyberGym: `--cybergym-mode (sim|server)`, `--cybergym-server`, `--cybergym-data-dir`, `--cybergym-difficulty`
+- CVE-Bench: `--cvebench-root`, `--cvebench-model`, `--cvebench-target` (repeatable)
+
+Artifacts are written to `results/` by default:
+
+- `cs_eval_results.json`
+- `cybergym_results.json`
+- `cve_bench_results.json`
+
+Notes:
+
+- CyberGym `server` mode scaffolds per-task directories in `results/cybergym_tmp/` and will use the local task generator when available; verification is skipped unless a live server is configured.
+- CVE-Bench currently invokes a placeholder runner. It accepts config and will integrate with Inspect in a future update.
+
+## �📊 Deployment Strategy by Use Case
 
 ### 🔬 Research & Development
 - **Start with**: CS-Eval on Lambda
