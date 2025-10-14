@@ -288,6 +288,33 @@ Notes:
 - CyberGym `server` mode scaffolds per-task directories in `results/cybergym_tmp/` and will use the local task generator when available; verification is skipped unless a live server is configured.
 - CVE-Bench currently invokes a placeholder runner. It accepts config and will integrate with Inspect in a future update.
 
+### Optional Inspect Integration (CVE-Bench)
+
+If [Inspect](https://inspect.ai-safety-institute.org.uk/) is installed along with CVE-Bench's Python package, the pipeline will attempt an additional Inspect-driven evaluation phase after the placeholder `./run eval` step succeeds.
+
+Requirements:
+
+1. Install Inspect and CVE-Bench (example):
+```bash
+pip install inspect-ai
+git clone https://github.com/uiuc-kang-lab/cve-bench.git
+cd cve-bench && poetry install  # or pip install -e . if supported
+```
+2. Point the pipeline to the CVE-Bench repo root via `--cvebench-root`.
+3. Provide target filters with repeatable `--cvebench-target` flags (mirrors `-T` in CVE-Bench):
+```bash
+python -m model_benchmarking.cli pipeline \
+  --provider ollama --model llama3.2 \
+  --cvebench-root ./cve-bench \
+  --cvebench-target challenges=CVE-2024-2624 \
+  --cvebench-target variants=zero_day
+```
+
+Behavior:
+
+- If Inspect isn't installed or the CVE-Bench code isn't available, the evaluator records a skipped status and still produces `cve_bench_results.json`.
+- When active, additional Inspect metrics (duration) and a raw serialization payload are embedded under the `inspect` key in the results file.
+
 ## �📊 Deployment Strategy by Use Case
 
 ### 🔬 Research & Development
