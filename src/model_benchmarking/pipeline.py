@@ -86,15 +86,55 @@ def run_pipeline(
 
     # CyberGym (placeholder for now)
     try:
-        # TODO: integrate real CyberGym evaluation using provider
-        results.append(PipelineStepResult(name="cybergym", status="skipped"))
+        # Integrate CyberGym evaluation using provider
+        repo_root = Path(__file__).resolve().parents[2]
+        sample_file = str(repo_root / "benchmarking" / "cybergym" / "cybergym_subset_sample.json")
+        # If sample file doesn't exist, attempt to use the one inside cybergym folder
+        if not Path(sample_file).exists():
+            sample_file = str(repo_root / "benchmarking" / "cybergym" / "cybergym" / "cybergym_subset_sample.json")
+
+        # Dynamic import to avoid import path issues
+        cybergym_eval_path = repo_root / "benchmarking" / "cybergym" / "evaluator.py"
+        spec = importlib.util.spec_from_file_location("cybergym_evaluator", str(cybergym_eval_path))
+        if spec is None or spec.loader is None:
+            raise RuntimeError("Unable to load CyberGym evaluator module")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # type: ignore[attr-defined]
+        run_cybergym_with_provider = getattr(module, "run_cybergym_with_provider")
+
+        cg = run_cybergym_with_provider(provider, sample_file=sample_file, output_dir=output_dir, max_items=max_questions)
+        results.append(
+            PipelineStepResult(
+                name="cybergym",
+                status="ok",
+                results_path=cg.get("results_path"),
+                metrics=cg.get("metrics"),
+            )
+        )
     except Exception as e:
         results.append(PipelineStepResult(name="cybergym", status=f"failed: {e}"))
 
     # CVE-Bench (placeholder for now)
     try:
-        # TODO: integrate Inspect-based CVE-Bench and map provider
-        results.append(PipelineStepResult(name="cve-bench", status="skipped"))
+        # Integrate CVE-Bench placeholder evaluator
+        repo_root = Path(__file__).resolve().parents[2]
+        cve_eval_path = repo_root / "benchmarking" / "cve-bench" / "evaluator.py"
+        spec = importlib.util.spec_from_file_location("cve_bench_evaluator", str(cve_eval_path))
+        if spec is None or spec.loader is None:
+            raise RuntimeError("Unable to load CVE-Bench evaluator module")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # type: ignore[attr-defined]
+        run_cve_bench = getattr(module, "run_cve_bench")
+
+        cb = run_cve_bench(output_dir=output_dir)
+        results.append(
+            PipelineStepResult(
+                name="cve-bench",
+                status="ok",
+                results_path=cb.get("results_path"),
+                metrics=cb.get("metrics"),
+            )
+        )
     except Exception as e:
         results.append(PipelineStepResult(name="cve-bench", status=f"failed: {e}"))
 

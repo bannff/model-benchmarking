@@ -89,3 +89,11 @@ class StrandsOllamaProvider:
             )
             results.append(r)
         return results
+
+    def generate_text(self, prompt: str) -> str:
+        """Generic text generation for non-MCQ tasks using the Strands agent."""
+        try:
+            result = self._agent(prompt)
+            return (getattr(result, "text", None) or getattr(result, "message", None) or str(result)).strip()
+        except Exception as e:  # pragma: no cover - runtime dependent
+            return f"ERROR: {e}"
