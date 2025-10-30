@@ -24,6 +24,8 @@ class CSEvalSuite(BaseSuite):
         cs_eval_config: Optional[Dict[str, Any]] = None,
         **_: Any,
     ) -> SuiteOutcome:
+        # Ensure the output directory exists for intermediate files written by CS-Eval
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
         # Load cs-eval runner dynamically since folder name has a hyphen
         repo_root = Path(__file__).resolve().parents[3]
         cs_eval_path = repo_root / "benchmarking" / "cs-eval" / "run_evaluation.py"

@@ -46,6 +46,7 @@ def report(results_path: str):
 @click.option("--strands-telemetry/--no-strands-telemetry", default=False)
 @click.option("--cs-eval-local-sample", type=click.Path(exists=True, dir_okay=False), default=None, help="Path to local CS-Eval sample (JSON/JSONL)")
 @click.option("--cybergym-mode", type=click.Choice(["sim", "server"]), default="sim", help="CyberGym mode: simulated or server-driven")
+@click.option("--cybergym-use-agent/--no-cybergym-use-agent", default=False, help="Use agent workflow (Strands + sandbox) for CyberGym tasks")
 @click.option("--cybergym-server", default="http://localhost:8666", help="CyberGym server base URL")
 @click.option("--cybergym-data-dir", default=None, help="Path to CyberGym data directory (for task generation)")
 @click.option("--cybergym-difficulty", default="level1", help="Task difficulty (level0..level3)")
@@ -57,7 +58,7 @@ def report(results_path: str):
 @click.option("--skip-cve-bench/--no-skip-cve-bench", default=False, help="Skip the CVE-Bench step")
 @click.option("--config", type=click.Path(exists=True, dir_okay=False), default=None, help="Path to pipeline config (YAML/JSON/TOML)")
 @click.option("--dry-run/--no-dry-run", default=False, help="Validate and print resolved config; do not execute")
-def pipeline(provider: str | None, model: str, host: str, categories: str | None, max_questions: int | None, output_dir: str, verbose: bool, strands_telemetry: bool, cs_eval_local_sample: str | None, cybergym_mode: str, cybergym_server: str, cybergym_data_dir: str | None, cybergym_difficulty: str, cvebench_root: str | None, cvebench_model: str | None, cvebench_target: tuple[str, ...], skip_cs_eval: bool, skip_cybergym: bool, skip_cve_bench: bool, config: str | None, dry_run: bool):
+def pipeline(provider: str | None, model: str, host: str, categories: str | None, max_questions: int | None, output_dir: str, verbose: bool, strands_telemetry: bool, cs_eval_local_sample: str | None, cybergym_mode: str, cybergym_server: str, cybergym_data_dir: str | None, cybergym_difficulty: str, cybergym_use_agent: bool, cvebench_root: str | None, cvebench_model: str | None, cvebench_target: tuple[str, ...], skip_cs_eval: bool, skip_cybergym: bool, skip_cve_bench: bool, config: str | None, dry_run: bool):
     """Run the full evaluation pipeline: CS-Eval -> CyberGym -> CVE-Bench."""
     from .providers.factory import make_provider
     from .pipeline import run_pipeline
@@ -106,6 +107,8 @@ def pipeline(provider: str | None, model: str, host: str, categories: str | None
         cybergym_overrides["data_dir"] = cybergym_data_dir
     if cybergym_difficulty != "level1":
         cybergym_overrides["difficulty"] = cybergym_difficulty
+    if cybergym_use_agent:
+        cybergym_overrides["use_agent_workflow"] = True
 
     cvebench_overrides = {}
     if cvebench_root:
