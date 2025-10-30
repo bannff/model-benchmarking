@@ -1,0 +1,18 @@
+provider:
+  name: strands-ollama
+  model: llama3.2
+  host: http://localhost:11434
+  temperature: 0.1
+  top_p: 0.9
+  max_tokens: 256
+
+pipeline:
+  output_dir: results/agent-cybergym
+  verbose: true
+  skip_cs_eval: true      # focus on CyberGym agent flow in this example
+  skip_cve_bench: true
+
+cybergym:
+  mode: sim               # simulate submit/verify locally
+  use_agent_workflow: true
+  difficulty: level1

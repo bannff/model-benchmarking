@@ -75,8 +75,32 @@ def run_cybergym_with_provider(
     if max_items is not None:
         tasks = tasks[: max(0, int(max_items))]
 
+    # Optional agent workflow path using Strands with a sandbox
+    use_agent = bool((cybergym_config or {}).get("use_agent_workflow"))
+    workflow = None
+    sandbox = None
+    if use_agent:
+        try:
+            from model_benchmarking.agents.sandbox import LocalSandbox  # type: ignore
+            from model_benchmarking.agents.strands_workflow import StrandsWorkflow  # type: ignore
+            # Pull model/host parameters from provider if available, else defaults
+            model_name = getattr(provider, "model", "llama3.2")
+            host = getattr(provider, "base_url", getattr(provider, "host", "http://localhost:11434"))
+            workflow = StrandsWorkflow(model=str(model_name), host=str(host))
+            sandbox = LocalSandbox()
+        except Exception:
+            workflow = None
+            sandbox = None
+
     # Provider contract: prefer a generic generate_text method, else fall back
     def _gen(prompt: str) -> str:
+        if workflow is not None:
+            # Let the agent produce a result and optionally write artifacts into the sandbox
+            out = workflow.run_task({
+                "system": "You produce minimal PoC text and/or files for CyberGym tasks.",
+                "prompt": prompt,
+            }, sandbox=sandbox)
+            return str(out.get("final", "")).strip()
         if hasattr(provider, "generate_text"):
             return provider.generate_text(prompt)  # type: ignore[attr-defined]
         # Fallback: use evaluate_question with free-form prompt
@@ -178,6 +202,7 @@ def run_cybergym_with_provider(
                 "submit_result": submit_result,
                 "verify_result": verify_result,
                 "generated_task": generated_task,
+                "used_agent": bool(workflow is not None),
                 "success": ok,
             }
         )
