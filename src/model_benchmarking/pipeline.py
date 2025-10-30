@@ -43,6 +43,10 @@ def run_pipeline(
     output_dir: str = "results",
     verbose: bool = False,
     use_strands_telemetry: bool = False,
+    skip_cs_eval: bool = False,
+    skip_cybergym: bool = False,
+    skip_cvebench: bool = False,
+    cs_eval_config: Optional[Dict[str, Any]] = None,
     cybergym_config: Optional[Dict[str, Any]] = None,
     cvebench_config: Optional[Dict[str, Any]] = None,
 ) -> List[PipelineStepResult]:
@@ -55,94 +59,105 @@ def run_pipeline(
     results: List[PipelineStepResult] = []
 
     # CS-Eval
-    try:
-        # Load cs-eval runner dynamically since folder name has a hyphen
-        repo_root = Path(__file__).resolve().parents[2]
-        cs_eval_path = repo_root / "benchmarking" / "cs-eval" / "run_evaluation.py"
-        spec = importlib.util.spec_from_file_location("cs_eval_runner", str(cs_eval_path))
-        if spec is None or spec.loader is None:
-            raise RuntimeError("Unable to load CS-Eval runner module")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[attr-defined]
-        run_cs_eval_with_provider = getattr(module, "run_cs_eval_with_provider")
+    if not skip_cs_eval:
+        try:
+            # Load cs-eval runner dynamically since folder name has a hyphen
+            repo_root = Path(__file__).resolve().parents[2]
+            cs_eval_path = repo_root / "benchmarking" / "cs-eval" / "run_evaluation.py"
+            spec = importlib.util.spec_from_file_location("cs_eval_runner", str(cs_eval_path))
+            if spec is None or spec.loader is None:
+                raise RuntimeError("Unable to load CS-Eval runner module")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)  # type: ignore[attr-defined]
+            run_cs_eval_with_provider = getattr(module, "run_cs_eval_with_provider")
 
-        cs = run_cs_eval_with_provider(
-            provider,
-            categories=categories,
-            max_questions=max_questions,
-            batch_size=10,
-            output_dir=output_dir,
-            verbose=verbose,
-        )
-        results.append(
-            PipelineStepResult(
-                name="cs-eval",
-                status="ok",
-                results_path=cs.get("results_path"),
-                metrics=cs.get("metrics"),
+            cs = run_cs_eval_with_provider(
+                provider,
+                categories=categories,
+                max_questions=max_questions,
+                batch_size=10,
+                output_dir=output_dir,
+                verbose=verbose,
+                # pass through local sample path if provided
+                local_sample_path=(cs_eval_config or {}).get("local_sample_path"),
             )
-        )
-    except Exception as e:
-        results.append(PipelineStepResult(name="cs-eval", status=f"failed: {e}"))
-        return results  # stop early if CS-Eval fails
-
-    # CyberGym (placeholder for now)
-    try:
-        # Integrate CyberGym evaluation using provider
-        repo_root = Path(__file__).resolve().parents[2]
-        sample_file = str(repo_root / "benchmarking" / "cybergym" / "cybergym_subset_sample.json")
-        # If sample file doesn't exist, attempt to use the one inside cybergym folder
-        if not Path(sample_file).exists():
-            sample_file = str(repo_root / "benchmarking" / "cybergym" / "cybergym" / "cybergym_subset_sample.json")
-
-        # Dynamic import to avoid import path issues
-        cybergym_eval_path = repo_root / "benchmarking" / "cybergym" / "evaluator.py"
-        spec = importlib.util.spec_from_file_location("cybergym_evaluator", str(cybergym_eval_path))
-        if spec is None or spec.loader is None:
-            raise RuntimeError("Unable to load CyberGym evaluator module")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[attr-defined]
-        run_cybergym_with_provider = getattr(module, "run_cybergym_with_provider")
-
-        cg = run_cybergym_with_provider(
-            provider,
-            sample_file=sample_file,
-            output_dir=output_dir,
-            max_items=max_questions,
-            cybergym_config=cybergym_config,
-        )
-        results.append(
-            PipelineStepResult(
-                name="cybergym",
-                status="ok",
-                results_path=cg.get("results_path"),
-                metrics=cg.get("metrics"),
+            results.append(
+                PipelineStepResult(
+                    name="cs-eval",
+                    status="ok",
+                    results_path=cs.get("results_path"),
+                    metrics=cs.get("metrics"),
+                )
             )
-        )
-    except Exception as e:
-        results.append(PipelineStepResult(name="cybergym", status=f"failed: {e}"))
+        except Exception as e:
+            results.append(PipelineStepResult(name="cs-eval", status=f"failed: {e}"))
+            return results  # stop early if CS-Eval fails
+    else:
+        results.append(PipelineStepResult(name="cs-eval", status="skipped"))
 
-    # CVE-Bench (placeholder for now)
-    try:
-        # Integrate CVE-Bench placeholder evaluator
-        repo_root = Path(__file__).resolve().parents[2]
-        cve_eval_path = repo_root / "benchmarking" / "cve-bench" / "evaluator.py"
-        spec = importlib.util.spec_from_file_location("cve_bench_evaluator", str(cve_eval_path))
-        if spec is None or spec.loader is None:
-            raise RuntimeError("Unable to load CVE-Bench evaluator module")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[attr-defined]
-        run_cve_bench = getattr(module, "run_cve_bench")
-        cb = run_cve_bench(output_dir=output_dir, cvebench_config=cvebench_config)
-        results.append(
-            PipelineStepResult(
-                name="cve-bench",
-                status="ok",
-                results_path=cb.get("results_path"),
-                metrics=cb.get("metrics"),
+    # CyberGym
+    if skip_cybergym:
+        results.append(PipelineStepResult(name="cybergym", status="skipped"))
+    else:
+        try:
+            # Integrate CyberGym evaluation using provider
+            repo_root = Path(__file__).resolve().parents[2]
+            sample_file = str(repo_root / "benchmarking" / "cybergym" / "cybergym_subset_sample.json")
+            # If sample file doesn't exist, attempt to use the one inside cybergym folder
+            if not Path(sample_file).exists():
+                sample_file = str(repo_root / "benchmarking" / "cybergym" / "cybergym" / "cybergym_subset_sample.json")
+
+            # Dynamic import to avoid import path issues
+            cybergym_eval_path = repo_root / "benchmarking" / "cybergym" / "evaluator.py"
+            spec = importlib.util.spec_from_file_location("cybergym_evaluator", str(cybergym_eval_path))
+            if spec is None or spec.loader is None:
+                raise RuntimeError("Unable to load CyberGym evaluator module")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)  # type: ignore[attr-defined]
+            run_cybergym_with_provider = getattr(module, "run_cybergym_with_provider")
+
+            cg = run_cybergym_with_provider(
+                provider,
+                sample_file=sample_file,
+                output_dir=output_dir,
+                max_items=max_questions,
+                cybergym_config=cybergym_config,
             )
-        )
-    except Exception as e:
-        results.append(PipelineStepResult(name="cve-bench", status=f"failed: {e}"))
+            results.append(
+                PipelineStepResult(
+                    name="cybergym",
+                    status="ok",
+                    results_path=cg.get("results_path"),
+                    metrics=cg.get("metrics"),
+                )
+            )
+        except Exception as e:
+            results.append(PipelineStepResult(name="cybergym", status=f"failed: {e}"))
+
+    # CVE-Bench
+    if skip_cvebench:
+        results.append(PipelineStepResult(name="cve-bench", status="skipped"))
+    else:
+        try:
+            # Integrate CVE-Bench evaluator
+            repo_root = Path(__file__).resolve().parents[2]
+            cve_eval_path = repo_root / "benchmarking" / "cve-bench" / "evaluator.py"
+            spec = importlib.util.spec_from_file_location("cve_bench_evaluator", str(cve_eval_path))
+            if spec is None or spec.loader is None:
+                raise RuntimeError("Unable to load CVE-Bench evaluator module")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)  # type: ignore[attr-defined]
+            run_cve_bench = getattr(module, "run_cve_bench")
+            cb = run_cve_bench(output_dir=output_dir, cvebench_config=cvebench_config, provider=provider)
+            results.append(
+                PipelineStepResult(
+                    name="cve-bench",
+                    status="ok",
+                    results_path=cb.get("results_path"),
+                    metrics=cb.get("metrics"),
+                )
+            )
+        except Exception as e:
+            results.append(PipelineStepResult(name="cve-bench", status=f"failed: {e}"))
 
     return results

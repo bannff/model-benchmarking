@@ -61,6 +61,66 @@ mbenchmark run --suite cs-eval
 
 This is a thin wrapper that delegates to the existing scripts (keeps original suites intact).
 
+Full pipeline (mock provider, local-only)
+----------------------------------------
+You can run the end-to-end pipeline locally without external services using the deterministic mock provider. This exercises CyberGym and CVE-Bench wiring and produces artifacts in the `results/` folder. To keep CI and local smoke runs fast and offline, skip CS-Eval (which downloads the dataset) with the `--skip-cs-eval` flag:
+
+```bash
+mbenchmark pipeline \
+  --provider mock \
+  --model mock \
+  --max_questions 1 \
+  --output_dir results \
+  --skip-cs-eval \
+  --verbose
+```
+
+Providers
+---------
+- `ollama`: Talks to a local Ollama server via HTTP.
+- `strands-ollama`: Uses Strands SDK over Ollama.
+- `mock`: Local deterministic provider for tests/CI (no network calls).
+
+Config-driven runs
+------------------
+You can drive the pipeline from a single config file (YAML/JSON/TOML). Two examples are provided:
+
+- `configs/examples/pipeline.minimal.yaml` — offline-friendly, uses the mock provider and skips CS-Eval.
+- `configs/examples/pipeline.ollama.yaml` — talks to a local Ollama server (ensure Ollama is running).
+
+Run with a config and override any field via CLI:
+
+```bash
+mbenchmark pipeline --config configs/examples/pipeline.minimal.yaml --max_questions 2 --skip-cybergym
+```
+
+Local experiments (scripted runs)
+---------------------------------
+If you prefer simple, portable Python entry points (no Makefile required), use the helper scripts under `scripts/`:
+
+- `scripts/smoke_offline.py` — end-to-end smoke test using the deterministic mock provider; no network needed.
+- `scripts/run_config.py` — run the full pipeline from a YAML/JSON/TOML config, with optional CLI overrides.
+- `scripts/run_cs_eval_local.py` — run CS‑Eval against a tiny local JSON/JSONL sample with the mock provider.
+
+Examples:
+
+```bash
+# 1) Offline smoke (runs CyberGym + CVE‑Bench with mock, skips CS‑Eval)
+python scripts/smoke_offline.py
+
+# 2) Config‑driven pipeline
+python scripts/run_config.py --config configs/examples/pipeline.minimal.yaml --skip-cybergym
+
+# 3) CS‑Eval on local sample (JSON/JSONL)
+python scripts/run_cs_eval_local.py --sample benchmarking/cybergym_subset_sample.json --out results
+```
+
+Windows notes
+-------------
+- Use PowerShell or Command Prompt with your virtual environment activated: `\.venv\Scripts\activate`.
+- Replace forward slashes with backslashes in paths when needed, e.g. `python scripts\smoke_offline.py`.
+- Docker commands are identical when using Docker Desktop; ensure file mount paths use Windows syntax, e.g. `-v %CD%:/workspace` in CMD or `-v ${PWD}:/workspace` in PowerShell.
+
 Docker image
 ------------
 You can build a container with the package and run the CLI inside a reproducible environment.
@@ -102,6 +162,16 @@ To pull the most recent release (latest):
 ```bash
 docker pull ghcr.io/<owner>/model-benchmarking:latest
 ```
+
+Makefile guidance (why we use Python scripts)
+--------------------------------------------
+- Makefiles are great on Unix-like systems but can be less portable on Windows without extra tooling.
+- This repo favors small Python wrappers in `scripts/` to ensure identical behavior across Linux, macOS, and Windows.
+- If you still want a Makefile locally, you can add one that simply shells out to these scripts (optional, not committed):
+  - `make smoke` → `python scripts/smoke_offline.py`
+  - `make run CONFIG=...` → `python scripts/run_config.py --config $(CONFIG)`
+  - `make cs_eval SAMPLE=...` → `python scripts/run_cs_eval_local.py --sample $(SAMPLE)`
+
 2. Run a CS-Eval job (text-only example)
 
 ```bash

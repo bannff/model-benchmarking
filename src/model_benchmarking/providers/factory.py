@@ -38,4 +38,9 @@ def make_provider(
             max_tokens=max_tokens,
         )
 
+    if provider == "mock":
+        from .mock import MockProvider
+
+        return MockProvider()
+
     raise ValueError(f"Unknown provider: {provider}")
