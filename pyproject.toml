@@ -13,6 +13,7 @@ dependencies = [
 	"click",
 	"datasets",
 	"requests",
+	"pydantic>=2.5,<3",
 	"strands-agents[ollama,otel]",
 	"strands-agents-tools",
 ]

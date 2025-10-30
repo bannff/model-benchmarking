@@ -23,8 +23,9 @@ class StrandsOllamaProvider:
         temperature: float = 0.1,
         top_p: float = 0.9,
         max_tokens: int = 256,
-        callback_handler: Optional[object] = None,
+    callback_handler: Optional[Any] = None,
     ) -> None:
+        self._agent: Any = None
         try:
             # Lazy import to avoid hard dependency at import time
             from strands import Agent  # type: ignore
@@ -36,8 +37,10 @@ class StrandsOllamaProvider:
 
         host = host.rstrip("/")
         # Prepare an Agent instance backed by Ollama
-        self._agent: Any = Agent(
-            model=OllamaModel(
+        AgentCls: Any = Agent
+        OllamaModelCls: Any = OllamaModel
+        self._agent = AgentCls(
+            model=OllamaModelCls(
                 host=host,
                 model_id=model,
                 temperature=temperature,
