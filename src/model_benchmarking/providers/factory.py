@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
+from .base import BaseProvider
 
 
 def make_provider(
@@ -13,7 +14,7 @@ def make_provider(
     top_p: float = 0.9,
     max_tokens: int = 256,
     use_strands: bool = False,
-) -> Any:
+) -> BaseProvider:
     provider = (provider or "").lower()
 
     if provider in ("strands-ollama",) or (use_strands and provider in ("ollama", "")):

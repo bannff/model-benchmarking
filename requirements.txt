@@ -3,5 +3,7 @@ unidecode
 tqdm
 datasets
 requests
+pydantic>=2
+click>=8.1
 strands-agents[ollama,otel]
 strands-agents-tools
