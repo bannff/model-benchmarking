@@ -16,15 +16,21 @@ from datetime import datetime
 # Add parent directories to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from datasets import load_dataset
-import requests
+try:
+    from datasets import load_dataset  # type: ignore
+except Exception:  # pragma: no cover
+    load_dataset = None  # type: ignore
+try:
+    import requests  # type: ignore
+except Exception:  # pragma: no cover
+    requests = None  # type: ignore
 from utils.evaluation_helpers import (
     save_results, calculate_metrics, generate_report, 
     ProgressTracker, format_question_for_display
 )
 
 try:
-    from config import MODEL_CONFIG, EVAL_CONFIG, OUTPUT_CONFIG, CATEGORIES
+    from config import MODEL_CONFIG, EVAL_CONFIG, OUTPUT_CONFIG, CATEGORIES  # type: ignore[reportMissingImports]
 except ImportError:
     # Default configuration if config.py doesn't exist
     MODEL_CONFIG = {"max_tokens": 512, "temperature": 0.1, "top_p": 0.9, "batch_size": 10}
@@ -100,15 +106,58 @@ class CSEvalBenchmark:
             split: Dataset split to load (train/validation/test)
         """
         print("🔄 Loading CS-Eval dataset...")
-        
+
+        # Optional local sample for offline runs
+        local_path = (self.config.get("eval", {}) or {}).get("local_sample_path")
+        if local_path:
+            print(f"📄 Using local CS-Eval sample: {local_path}")
+
+            class _LocalDataset:
+                def __init__(self, items: List[Dict[str, Any]]):
+                    self._items = items
+                    self.features = {k: True for k in (items[0].keys() if items else [])}
+
+                def __len__(self) -> int:
+                    return len(self._items)
+
+                def __iter__(self):
+                    return iter(self._items)
+
+                def __getitem__(self, idx: int) -> Dict[str, Any]:
+                    return self._items[idx]
+
+            try:
+                items: List[Dict[str, Any]] = []
+                # Detect JSONL vs JSON
+                if str(local_path).lower().endswith((".jsonl", ".jsonl.txt")):
+                    with open(local_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line:
+                                items.append(json.loads(line))
+                else:
+                    with open(local_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        if isinstance(data, list):
+                            items = data
+                        else:
+                            raise ValueError("Local sample JSON must be a list of items")
+                self.dataset = _LocalDataset(items)
+                print(f"✅ Loaded {len(self.dataset)} questions from local sample")
+                if self.config["eval"].get("verbose"):
+                    print(f"📋 Available columns: {list(self.dataset.features.keys())}")
+                return
+            except Exception as e:
+                print(f"❌ Error loading local sample: {e}")
+                raise
+
         try:
+            if load_dataset is None:
+                raise RuntimeError("'datasets' package is not installed; use a local sample or install datasets")
             self.dataset = load_dataset("cseval/cs-eval", split=split)
             print(f"✅ Loaded {len(self.dataset)} questions from CS-Eval dataset")
-            
-            # Print dataset info
             if self.config["eval"]["verbose"]:
                 print(f"📋 Available columns: {list(self.dataset.features.keys())}")
-                
         except Exception as e:
             print(f"❌ Error loading dataset: {e}")
             print("💡 Make sure you have internet access and Hugging Face authentication")
@@ -402,6 +451,8 @@ def main():
             prompt += "\nAnswer:"
 
             try:
+                if requests is None:
+                    raise RuntimeError("'requests' package is not installed")
                 resp = requests.post(
                     f"{self.base_url}/api/generate",
                     json={
@@ -457,7 +508,7 @@ if __name__ == "__main__":
     main()
 
 # Provide a simple callable for pipeline usage
-def run_cs_eval_with_provider(provider: ModelInterface, *, categories: Optional[List[str]] = None, max_questions: Optional[int] = None, batch_size: int = 10, output_dir: str = "results", verbose: bool = False) -> Dict[str, Any]:
+def run_cs_eval_with_provider(provider: ModelInterface, *, categories: Optional[List[str]] = None, max_questions: Optional[int] = None, batch_size: int = 10, output_dir: str = "results", verbose: bool = False, local_sample_path: Optional[str] = None) -> Dict[str, Any]:
     """Execute CS-Eval using an injected provider. Returns dict with results and paths.
 
     This enables orchestrators to reuse CS-Eval without spawning a subprocess.
@@ -467,9 +518,11 @@ def run_cs_eval_with_provider(provider: ModelInterface, *, categories: Optional[
             "categories_to_evaluate": categories,
             "max_questions_per_category": max_questions,
             "verbose": verbose,
+            "save_intermediate_results": True,
+            "local_sample_path": local_sample_path,
         },
         "model": {"batch_size": batch_size},
-        "output": {"results_dir": output_dir},
+        "output": {"results_dir": output_dir, "generate_report": False},
     }
     bench = CSEvalBenchmark(config_updates)
     bench.load_dataset()

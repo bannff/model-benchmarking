@@ -1,0 +1,17 @@
+# Minimal local pipeline config (offline-friendly)
+provider:
+  name: mock
+  model: mock
+pipeline:
+  output_dir: results
+  max_questions: 1
+  skip_cs_eval: true
+  skip_cybergym: false
+  skip_cve_bench: false
+  verbose: true
+cybergym:
+  mode: sim
+  difficulty: level1
+cvebench:
+  # Use repo-local wrapper by default
+  targets: []

@@ -17,6 +17,7 @@ import json
 import importlib.util
 import os
 import subprocess
+import sys
 
 
 def _load_tasks(sample_file: Path) -> List[Dict[str, Any]]:
@@ -48,6 +49,10 @@ def run_cybergym_with_provider(
 ) -> Dict[str, Any]:
     # Lazy import PoC helpers from the scaffold (via file path to avoid sys.path issues)
     cybergym_dir = Path(__file__).resolve().parent / "cybergym"
+    # Ensure local 'cybergym' package is importable for its absolute imports
+    pkg_root = Path(__file__).resolve().parent
+    if str(pkg_root) not in sys.path:
+        sys.path.insert(0, str(pkg_root))
     poc_workflow_path = cybergym_dir / "poc_workflow.py"
     spec = importlib.util.spec_from_file_location("cybergym_poc_workflow", str(poc_workflow_path))
     if spec is None or spec.loader is None:

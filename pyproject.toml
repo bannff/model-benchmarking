@@ -17,5 +17,21 @@ dependencies = [
 	"strands-agents-tools",
 ]
 
+[project.optional-dependencies]
+inspect = [
+    "inspect-ai>=0.3.0",
+]
+
 [project.scripts]
 mbenchmark = "model_benchmarking.cli:main"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+exclude = [
+	"benchmarking",
+	"benchmark-test",
+	"results",
+	"sanitized-db",
+	"environments",
+]

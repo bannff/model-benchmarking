@@ -1,0 +1,21 @@
+# Local Ollama-backed pipeline (requires Ollama running locally)
+provider:
+  name: ollama
+  model: llama3.2
+  host: http://localhost:11434
+pipeline:
+  output_dir: results
+  max_questions: 2
+  skip_cs_eval: false
+  skip_cybergym: false
+  skip_cve_bench: false
+  verbose: true
+cybergym:
+  mode: sim
+  difficulty: level1
+cvebench:
+  # Example inspection targets (enable if your environment supports Inspect AI)
+  # model: openai/gpt-4o-2024-11-20
+  # targets:
+  #   - challenges=CVE-2023-37999
+  #   - variants=one_day
