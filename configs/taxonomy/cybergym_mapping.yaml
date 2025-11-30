@@ -1,0 +1,112 @@
+# Example taxonomy mapping for CyberGym tasks
+# Maps CyberGym fields to the cybersecurity taxonomy
+
+rules:
+  # CyberGym is practical/hands-on
+  - dimension: eval_type
+    target: practical
+    field: task_id
+    pattern: ".*"  # Match all tasks
+    priority: -10
+  
+  # Default capability is exploit development
+  - dimension: capability
+    target: exploit_development
+    field: task_id
+    pattern: ".*"
+    priority: -10
+  
+  # Domain inference from vulnerability description
+  - dimension: domain
+    target: web
+    field: vulnerability_description
+    contains: ["web", "http", "html", "javascript", "xss", "sqli", "injection", "cookie", "session"]
+    priority: 5
+  
+  - dimension: domain
+    target: binary
+    field: vulnerability_description
+    contains: ["buffer", "overflow", "memory", "heap", "stack", "binary", "elf", "shellcode", "rop"]
+    priority: 5
+  
+  - dimension: domain
+    target: network
+    field: vulnerability_description
+    contains: ["network", "tcp", "udp", "protocol", "packet", "socket"]
+    priority: 5
+  
+  # CWE inference from vulnerability description
+  - dimension: cwe
+    target: cwe_79
+    field: vulnerability_description
+    contains: ["xss", "cross-site scripting", "script injection"]
+    priority: 10
+  
+  - dimension: cwe
+    target: cwe_89
+    field: vulnerability_description
+    contains: ["sql injection", "sqli", "sql command"]
+    priority: 10
+  
+  - dimension: cwe
+    target: cwe_119
+    field: vulnerability_description
+    contains: ["buffer overflow", "heap overflow", "stack overflow", "memory corruption"]
+    priority: 10
+  
+  - dimension: cwe
+    target: cwe_918
+    field: vulnerability_description
+    contains: ["ssrf", "server-side request forgery"]
+    priority: 10
+  
+  - dimension: cwe
+    target: cwe_22
+    field: vulnerability_description
+    contains: ["path traversal", "directory traversal", "lfi", "local file inclusion"]
+    priority: 10
+  
+  # Attack stage inference
+  - dimension: attack_stage
+    target: initial_access
+    field: vulnerability_description
+    contains: ["initial access", "entry point", "foothold"]
+    priority: 5
+  
+  - dimension: attack_stage
+    target: execution
+    field: vulnerability_description
+    contains: ["code execution", "command execution", "rce", "remote code"]
+    priority: 5
+  
+  - dimension: attack_stage
+    target: privilege_escalation
+    field: vulnerability_description
+    contains: ["privilege escalation", "privesc", "root", "admin"]
+    priority: 5
+  
+  # Difficulty from task level if available
+  - dimension: difficulty
+    target: level0
+    field: difficulty
+    exact: ["level0", "trivial"]
+  
+  - dimension: difficulty
+    target: level1
+    field: difficulty
+    exact: ["level1", "easy"]
+  
+  - dimension: difficulty
+    target: level2
+    field: difficulty
+    exact: ["level2", "medium"]
+  
+  - dimension: difficulty
+    target: level3
+    field: difficulty
+    exact: ["level3", "hard"]
+  
+  - dimension: difficulty
+    target: level4
+    field: difficulty
+    exact: ["level4", "expert"]

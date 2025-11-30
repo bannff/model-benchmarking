@@ -1,0 +1,70 @@
+# Example Code Generation Evaluation Suite
+# Demonstrates code extraction and multi-metric grading
+
+name: example-code
+description: Code generation evaluation with syntax and semantic checking
+
+dataset: ../../datasets/example_code.jsonl
+
+target:
+  provider: ${PROVIDER:-ollama}
+  model: ${MODEL:-codellama}
+  temperature: 0.2
+
+graders:
+  # Check if response contains valid Python code block
+  has_code:
+    kind: tool
+    function: contains
+    extractor:
+      name: code_block
+      config:
+        language: python
+    config:
+      substring: "def "
+
+  # Check for specific function name
+  correct_function:
+    kind: tool
+    function: regex
+    extractor:
+      name: code_block
+      config:
+        language: python
+    config:
+      pattern: "def\\s+{{ expected_function }}\\s*\\("
+
+  # Full semantic evaluation with rubric
+  code_quality:
+    kind: rubric
+    prompt: |
+      Evaluate the following Python code solution.
+      
+      Task: {{ input }}
+      Expected behavior: {{ ground_truth }}
+      
+      Code submitted:
+      ```python
+      {{ submission }}
+      ```
+      
+      Evaluate on:
+      1. Correctness: Does it solve the problem?
+      2. Efficiency: Is the approach reasonable?
+      3. Style: Is the code clean and Pythonic?
+      
+      Return: {"score": 0.0-1.0, "rationale": "explanation"}
+    extractor:
+      name: code_block
+      config:
+        language: python
+    model: ${JUDGE_MODEL:-llama3.2}
+    temperature: 0.0
+
+gate:
+  metric_key: code_quality
+  op: gte
+  value: 0.6
+
+max_samples: 30
+max_concurrent: 2
