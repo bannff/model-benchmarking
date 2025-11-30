@@ -1,277 +1,259 @@
-# Model Benchmarking — Unified Cybersecurity Evaluation Suite
+# Model Benchmarking
 
-This repository brings three complementary cybersecurity benchmarking suites together so security teams and researchers can evaluate language models with a single, consistent tooling surface.
+A unified cybersecurity model evaluation framework for benchmarking LLMs on security tasks.
 
-In one place you'll find:
-- CS-Eval: question-and-answer style benchmarks (text-based)
-- CVE-Bench: challenge-driven fixtures and vulnerable images (containerized)
-- CyberGym: interactive scenario simulations (containerized/hosted)
+## Features
 
-Why a unified suite
--------------------
-- Broad coverage: combine knowledge/Q&A checks, interactive scenario-based testing, and challenge exploitation/mitigation exercises.
-- Reuse and automation: a single CLI/runner can start suites, orchestrate containers, and aggregate scores.
-- Reproducibility: run each benchmark inside a container for consistent, safe evaluation.
+- **Unified Evals Framework** — Flexible, config-driven evaluation suites with pluggable graders
+- **Taxonomy System** — Hierarchical classification for organizing evaluations by capability, domain, difficulty, CWE, and attack stage
+- **Multiple Providers** — Support for Ollama, Strands SDK, and mock providers
+- **Three Benchmark Suites** — CS-Eval (Q&A), CVE-Bench (challenges), and CyberGym (interactive scenarios)
 
-Repository layout (high level)
------------------------------
-- `benchmarking/` — shared evaluation runners, example configs, and utilities.
-- `benchmark-test/` — development fixtures and local harnesses for the three suites:
-  - `benchmark-test/cs-eval/` — CS-Eval content and runner scripts.
-  - `benchmark-test/cve-bench/` — CVE challenge fixtures (DB dumps, images, graders).
-  - `benchmark-test/cybergym/` — CyberGym scenarios and example orchestrations.
-- `configs/` — example config files for running experiments.
-- `environments/` — virtualenv and environment setup helpers.
-- `.gitattributes` — rules for tracking large binary artifacts (e.g., `*.arrow`, `*.parquet`, `*.bin`).
+## Quick Start
 
-Short blurbs on each suite
---------------------------
-- CS-Eval
-  - Type: question-and-answer (closed-form and open-form prompts)
-  - Use-case: test knowledge, instruction following, and reasoning on textual prompts.
-  - Integration: very scriptable — you can feed prompt lists to a model client and collect structured outputs for automated scoring.
-
-- CVE-Bench
-  - Type: challenge fixtures, vulnerable appliances, and grader harnesses.
-  - Use-case: evaluate model-assisted exploitation reasoning, mitigation suggestions, and step-by-step exploit descriptions.
-  - Integration: typically containerized; graders often expect helper scripts in the runtime image (see `benchmark-test/cve-bench/README.md`). Many challenge fixtures include SQL dumps and configuration strings that reference script paths — these are part of the original fixtures.
-
-- CyberGym
-  - Type: interactive, scenario-based simulated environments (often multi-host or service networks).
-  - Use-case: measure a model's ability to orchestrate multi-step actions, persistence, detection evasion, or defense strategies via API interactions.
-  - Integration: run as an isolated container or VM, and expose a stable API endpoint the model can query.
-
-Getting started — quick developer steps
---------------------------------------
-1. Install dependencies
+### Installation
 
 ```bash
+# Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+
+# Install dependencies
+pip install -e .
 ```
 
-Quickstart (local package)
----------------------------
-To use the new shared package CLI after installing in your environment, run:
+### Run an Evaluation
+
+```bash
+# Run the full pipeline with Ollama
+mbenchmark pipeline --provider ollama --model llama3.2
+
+# Run with mock provider (offline, no external services)
+mbenchmark pipeline --provider mock --skip-cs-eval
+
+# Run from a config file
+mbenchmark pipeline --config configs/examples/pipeline.minimal.yaml
+```
+
+## Project Structure
+
+```
+src/model_benchmarking/
+├── cli.py              # CLI entry point (mbenchmark command)
+├── pipeline.py         # Full evaluation pipeline
+├── evals/              # Core evaluation framework
+│   ├── models.py       # Pydantic models (Sample, SuiteSpec, GraderSpec, etc.)
+│   ├── suite.py        # Suite configuration loader
+│   ├── runner.py       # Evaluation runner
+│   ├── graders/        # Grader implementations
+│   │   ├── tool_graders.py   # exact_match, contains, regex, etc.
+│   │   └── rubric_grader.py  # LLM-as-judge grading
+│   ├── gates.py        # Pass/fail gate evaluation
+│   └── dataset.py      # Dataset loading utilities
+├── taxonomy/           # Hierarchical classification system
+│   ├── schema.py       # TaxonomyNode, TaxonomyDimension, SampleTaxonomy
+│   ├── registry.py     # Built-in cybersecurity taxonomy
+│   └── mapper.py       # Rule-based and inference-based mapping
+├── providers/          # Model provider implementations
+└── suites/             # Suite-specific runners (CS-Eval, CyberGym, CVE-Bench)
+
+configs/
+├── evals/              # Evaluation suite configs
+│   ├── example_qa.yaml
+│   ├── example_code.yaml
+│   └── example_rubric.yaml
+├── taxonomy/           # Taxonomy mapping configs
+└── examples/           # Pipeline config examples
+```
+
+## Evals Framework
+
+The evals framework provides a flexible way to define and run evaluations.
+
+### Suite Configuration
+
+Suites are defined in YAML:
+
+```yaml
+name: example-qa
+description: Question-answering evaluation
+
+dataset: ./data/questions.jsonl
+
+target:
+  provider: ollama
+  model: llama3.2
+  temperature: 0.0
+
+graders:
+  accuracy:
+    kind: tool
+    function: exact_match
+    extractor:
+      name: first_line
+
+gate:
+  metric_key: accuracy
+  op: gte
+  value: 0.7
+```
+
+### Built-in Graders
+
+| Grader | Description |
+|--------|-------------|
+| `exact_match` | Exact string comparison |
+| `contains` | Check if expected is contained in output |
+| `regex` | Pattern matching |
+| `numeric_tolerance` | Numeric comparison with tolerance |
+| `code_execution` | Execute code and compare output |
+| `rubric` | LLM-as-judge with customizable rubrics |
+
+### Custom Graders
+
+Register custom graders with the `@grader` decorator:
+
+```python
+from model_benchmarking.evals.graders import grader, GradeResult
+
+@grader("my_custom_grader")
+def my_grader(output: str, expected: str, **config) -> GradeResult:
+    score = 1.0 if some_condition(output, expected) else 0.0
+    return GradeResult(score=score, rationale="...")
+```
+
+## Taxonomy System
+
+The taxonomy provides hierarchical classification for evaluation samples.
+
+### Dimensions
+
+| Dimension | Description | Example Values |
+|-----------|-------------|----------------|
+| `capability` | Security skill being tested | exploit_development, vulnerability_analysis, secure_coding |
+| `domain` | Security domain | network, web, binary, cloud, cryptography |
+| `difficulty` | Normalized difficulty | trivial, easy, medium, hard, expert |
+| `cwe` | CWE weakness ID | CWE-79, CWE-89, CWE-120 |
+| `attack_stage` | MITRE ATT&CK stage | reconnaissance, initial_access, execution |
+| `eval_type` | Type of evaluation | knowledge, practical, code_generation |
+
+### Usage
+
+```python
+from model_benchmarking.taxonomy import get_taxonomy, TaxonomyMapper, AutoMapper
+
+# Get the built-in cybersecurity taxonomy
+taxonomy = get_taxonomy("cybersecurity")
+
+# Map samples using rules
+mapper = TaxonomyMapper("cybersecurity")
+mapper.add_rule(MappingRule(
+    dimension="domain",
+    target_value="web",
+    field="category",
+    contains=["Web", "HTTP", "API"]
+))
+result = mapper.map(sample)
+
+# Auto-infer taxonomy from sample content
+auto = AutoMapper(taxonomy)
+inferred = auto.infer({"prompt": "Explain SQL injection attacks"})
+```
+
+### CLI Commands
+
+```bash
+# List available taxonomies
+mbenchmark taxonomy list
+
+# Show taxonomy details
+mbenchmark taxonomy show cybersecurity
+mbenchmark taxonomy show cybersecurity --dimension capability
+```
+
+## Benchmark Suites
+
+### CS-Eval
+Text-based Q&A benchmarks testing security knowledge and reasoning.
 
 ```bash
 mbenchmark run --suite cs-eval
 ```
 
-This is a thin wrapper that delegates to the existing scripts (keeps original suites intact).
-
-Full pipeline (mock provider, local-only)
-----------------------------------------
-You can run the end-to-end pipeline locally without external services using the deterministic mock provider. This exercises CyberGym and CVE-Bench wiring and produces artifacts in the `results/` folder. To keep CI and local smoke runs fast and offline, skip CS-Eval (which downloads the dataset) with the `--skip-cs-eval` flag:
+### CVE-Bench
+Challenge-driven fixtures with vulnerable container images.
 
 ```bash
-mbenchmark pipeline \
-  --provider mock \
-  --model mock \
-  --max_questions 1 \
-  --output_dir results \
-  --skip-cs-eval \
-  --verbose
+mbenchmark run --suite cve-bench
 ```
 
-Providers
----------
-- `ollama`: Talks to a local Ollama server via HTTP.
-- `strands-ollama`: Uses Strands SDK over Ollama.
-- `mock`: Local deterministic provider for tests/CI (no network calls).
-
-Config-driven runs
-------------------
-You can drive the pipeline from a single config file (YAML/JSON/TOML). Two examples are provided:
-
-- `configs/examples/pipeline.minimal.yaml` — offline-friendly, uses the mock provider and skips CS-Eval.
-- `configs/examples/pipeline.ollama.yaml` — talks to a local Ollama server (ensure Ollama is running).
-
-Run with a config and override any field via CLI:
+### CyberGym
+Interactive scenario simulations for multi-step security tasks.
 
 ```bash
-mbenchmark pipeline --config configs/examples/pipeline.minimal.yaml --max_questions 2 --skip-cybergym
+mbenchmark run --suite cybergym
 ```
 
-Local experiments (scripted runs)
----------------------------------
-If you prefer simple, portable Python entry points (no Makefile required), use the helper scripts under `scripts/`:
+## Providers
 
-- `scripts/smoke_offline.py` — end-to-end smoke test using the deterministic mock provider; no network needed.
-- `scripts/run_config.py` — run the full pipeline from a YAML/JSON/TOML config, with optional CLI overrides.
-- `scripts/run_cs_eval_local.py` — run CS‑Eval against a tiny local JSON/JSONL sample with the mock provider.
+| Provider | Description |
+|----------|-------------|
+| `ollama` | Local Ollama server |
+| `strands-ollama` | Strands SDK with Ollama backend |
+| `mock` | Deterministic mock for testing (no network) |
 
-Examples:
-
-```bash
-# 1) Offline smoke (runs CyberGym + CVE‑Bench with mock, skips CS‑Eval)
-python scripts/smoke_offline.py
-
-# 2) Config‑driven pipeline
-python scripts/run_config.py --config configs/examples/pipeline.minimal.yaml --skip-cybergym
-
-# 3) CS‑Eval on local sample (JSON/JSONL)
-python scripts/run_cs_eval_local.py --sample benchmarking/cybergym_subset_sample.json --out results
-```
-
-Windows notes
--------------
-- Use PowerShell or Command Prompt with your virtual environment activated: `\.venv\Scripts\activate`.
-- Replace forward slashes with backslashes in paths when needed, e.g. `python scripts\smoke_offline.py`.
-- Docker commands are identical when using Docker Desktop; ensure file mount paths use Windows syntax, e.g. `-v %CD%:/workspace` in CMD or `-v ${PWD}:/workspace` in PowerShell.
-
-Docker image
-------------
-You can build a container with the package and run the CLI inside a reproducible environment.
-
-Build the image:
+## Docker
 
 ```bash
+# Build the image
 docker build -t model-benchmarking:local .
+
+# Run evaluation in container
+docker run --rm -v $(pwd):/workspace -w /workspace \
+  model-benchmarking:local pipeline --provider mock --skip-cs-eval
 ```
 
-Run the `cs-eval` suite inside the container (mount the repo to `/workspace`):
+## Development
 
 ```bash
-docker run --rm -v $(pwd):/workspace -w /workspace model-benchmarking:local run --suite cs-eval
+# Install dev dependencies
+pip install -r requirements-dev.txt
+
+# Run tests
+pytest tests/
+
+# Run specific test file
+pytest tests/test_taxonomy.py -v
 ```
 
-CVE-Bench graders may expect helper scripts at `/evaluator/scripts` inside the container. Provide them by mounting a host directory when running the challenge images or when using this container:
+## Configuration
 
-```bash
-docker run --rm -v /path/to/evaluator-scripts:/evaluator/scripts:ro -v $(pwd):/workspace -w /workspace model-benchmarking:local run --suite cve-bench
+### Environment Variables
+
+- `OLLAMA_HOST` — Ollama server URL (default: `http://localhost:11434`)
+- `CYBERGYM_SERVER` — CyberGym server URL
+- `CVEBENCH_ROOT` — Path to CVE-Bench repository
+
+### Pipeline Config
+
+```yaml
+# configs/examples/pipeline.minimal.yaml
+provider:
+  name: mock
+  model: mock
+
+pipeline:
+  output_dir: results
+  skip_cs_eval: true
+  verbose: true
 ```
 
-Publish to GitHub Container Registry (GHCR)
------------------------------------------
-To have CI push the built image to GHCR on merges, create a personal access token with `write:packages` scope and add it to repository secrets as `GHCR_PAT`. The CI will push `ghcr.io/<owner>/model-benchmarking:latest` when the secret is present.
+## Safety
 
-Releases and the `latest` tag
------------------------------
-When you push a git tag following the pattern `v*` (for example `v1.2.0`), the `release.yml` workflow will build multi-arch images and push both the version tag and a `latest` tag to GHCR (e.g. `ghcr.io/<owner>/model-benchmarking:v1.2.0` and `ghcr.io/<owner>/model-benchmarking:latest`).
+This repository contains intentionally vulnerable challenge content for security evaluation. Always run CVE-Bench and CyberGym workloads in isolated environments.
 
-To pull a specific release:
+## License
 
-```bash
-docker pull ghcr.io/<owner>/model-benchmarking:v1.2.0
-```
+See [LICENSE](LICENSE) for details.
 
-To pull the most recent release (latest):
-
-```bash
-docker pull ghcr.io/<owner>/model-benchmarking:latest
-```
-
-Makefile guidance (why we use Python scripts)
---------------------------------------------
-- Makefiles are great on Unix-like systems but can be less portable on Windows without extra tooling.
-- This repo favors small Python wrappers in `scripts/` to ensure identical behavior across Linux, macOS, and Windows.
-- If you still want a Makefile locally, you can add one that simply shells out to these scripts (optional, not committed):
-  - `make smoke` → `python scripts/smoke_offline.py`
-  - `make run CONFIG=...` → `python scripts/run_config.py --config $(CONFIG)`
-  - `make cs_eval SAMPLE=...` → `python scripts/run_cs_eval_local.py --sample $(SAMPLE)`
-
-2. Run a CS-Eval job (text-only example)
-
-```bash
-python3 benchmarking/cs-eval/run_evaluation.py --model <model-id-or-path> --output results/cs-eval/<run-name>
-```
-
-3. Run a CVE-Bench challenge (containerized, high-level)
-
-```bash
-# Build or pull the challenge runtime image, then start the container
-docker compose -f benchmark-test/cve-bench/docker-compose.yml up --build
-# Provide runtime helper scripts to the container if required (mount /evaluator/scripts)
-```
-
-4. Run CyberGym (interactive)
-
-```bash
-# Start the CyberGym container and expose API endpoints
-docker compose -f benchmark-test/cybergym/docker-compose.yml up --build
-# Use the provided orchestrator to drive scenario steps via API.
-```
-
-Runtime helper scripts and embedded references
----------------------------------------------
-Some graders and challenge images expect helper scripts (for example: `/evaluator/scripts/run_lollms.sh`). Provide these at container startup by mounting them into the container or baking them into the runtime image. Many SQL dumps contain strings like `<path_cacti>/scripts/...` — these are part of the challenge fixtures and intentionally left unchanged.
-
-Large files and repository hygiene
----------------------------------
-- The repo uses `.gitattributes` to track large dataset patterns and avoid committing raw binary dataset shards into git history. If you add large artifacts, either:
-  - Track them via the `.gitattributes`/pointer mechanism, or
-  - Host them externally (S3/Hugging Face/artifact storage) and store only pointers in this repo.
-
-Working with Git LFS (for contributors)
---------------------------------------
-After cloning this repository, run these commands to ensure LFS objects are fetched correctly:
-
-```bash
-git lfs install
-git lfs pull --all
-```
-
-If collaborators do not install Git LFS they will see pointer files (not the binary content) in place of large files. Add this to your onboarding instructions or CI checks.
-
-Security & safety
------------------
-This repository contains intentionally vulnerable challenge content. Always run CVE-Bench and CyberGym workloads in isolated networks or disposable environments. Do not expose challenge instances to untrusted networks.
-
-Contributing & roadmap
-----------------------
-- Unified CLI to run suites and aggregate results
-- UI to visualize runs and scoring dashboards
-- CI checks and pre-commit hooks to block accidental large file commits
-
-If you want me to add CI/pre-commit hooks or create the unified runner CLI, say the word and I will scaffold them.
-
----
-For suite-level READMEs (short notes or runtime tips), see the files under `benchmark-test/` (added alongside the challenges).
-
-Codespaces / Devcontainer
--------------------------
-This repository includes a `.devcontainer` to make Codespaces or local devcontainers easier to use. The devcontainer config sets up Python 3.11, installs developer deps, and configures your git author identity inside the container so commits from Codespaces have the correct author metadata. If you prefer not to commit a devcontainer to the repo, let me know and I can revert that file and instead document the recommended setup in the README.
-
-# Model-Benchmarking — Cybersecurity Model Evaluation Suite
-
-This repository hosts evaluation harnesses, challenge datasets, and safe sandboxing scaffolds for benchmarking language models on cybersecurity tasks (CVE reasoning, exploit analysis, and challenge-style tasks).
-
-Purpose:
-- Provide reproducible evaluation runners for CS-Eval, CVE-Bench, and CyberGym-style challenges.
-- Keep challenge assets and evaluation harnesses together while excluding large dataset artifacts and preprocessing tools from the public repo.
-
-Note about moved assets
-- The project's dataset pre-processing scripts and auxiliary docs have been moved out of this repository to the parent workspace. If you need them, they live at the parent workspace location (for example `/Users/danielrodrigo/Workspace/datasets/`).
-
-Quick start (what this repo contains)
-- `benchmarking/` — evaluation runners and configs for public benchmarks
-- `benchmark-test/` — local challenge payloads and test harnesses (CVE-Bench fixtures used for CI/local testing)
-- `configs/` — example configs for running evaluations
-- `scripts/` — lightweight runner scripts (small helpers only — heavy dataset processing tools are intentionally moved out)
-- `results/` — output from prior benchmark runs
-How to run an evaluation (example)
-1. Install Python deps: `pip install -r requirements.txt`
-2. Run a benchmark runner (example for CS-Eval):
-   - `python3 benchmarking/cs-eval/run_evaluation.py --model <model-id-or-path> --output results/cs-eval/<run-name>`
-
-Notes on large files
-- Large dataset shards and binary artifacts have been migrated to Git LFS and/or moved out of the repository. If you need to work with large datasets, keep them in a separate storage location (S3, Hugging Face datasets, or a parent workspace) and avoid committing raw archives to this repo.
-
-Sanitization of embedded challenge data
-- Some challenge database dumps (under `benchmark-test/cve-bench/.../db/`) intentionally contain textual references to external script paths (these are part of challenge payloads and not active repo scripts). If you want these sanitized or annotated, I can either:
-  1. Replace those occurrences with a short placeholder, or
-  2. Add an explanatory README in `benchmark-test/cve-bench/` clarifying these are challenge DB dumps and that `scripts/` was moved.
-
-Contributing
-- To add a new model evaluation, create a new directory under `benchmarking/` with a small runner script, a config, and test fixtures.
-
-Safety and sandboxing
-- CVE-Bench and CyberGym evaluations include sandbox notes and docker configurations — do not run untrusted challenge targets without proper isolation.
-
-Contact
-- If you need the dataset preprocessing scripts or full documentation that were moved, find them at the parent workspace paths listed above.
-
----
 
