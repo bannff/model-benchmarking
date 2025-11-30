@@ -1,0 +1,40 @@
+# Example QA Evaluation Suite
+# Demonstrates basic question-answering evaluation with exact match grading
+
+name: example-qa
+description: Simple QA evaluation with exact match grading
+
+# Dataset path (relative to this file or absolute)
+dataset: ../../datasets/example_qa.jsonl
+
+# Target configuration (can be overridden at runtime)
+target:
+  provider: ollama
+  model: llama3.2
+  temperature: 0.0
+
+# Graders configuration
+graders:
+  accuracy:
+    kind: tool
+    function: exact_match
+    extractor:
+      name: first_line
+    config:
+      case_sensitive: false
+  
+  contains_answer:
+    kind: tool
+    function: contains
+    config:
+      case_sensitive: false
+
+# Pass/fail gate
+gate:
+  metric_key: accuracy
+  op: gte
+  value: 0.7
+
+# Execution settings
+max_samples: 100
+max_concurrent: 5

@@ -1,6 +1,6 @@
 import click  # type: ignore[reportMissingImports]
 import sys
-from typing import Any, cast
+from typing import Any, cast, Optional, List, Dict, Tuple
 from . import runner
 
 
@@ -17,7 +17,7 @@ main = cast(Any, main)
 @click.option("--suite", default="cs-eval", help="Which suite to run (cs-eval|cve-bench|cybergym)")
 @click.option("--config", default=None, help="Path to config YAML")
 @click.option("--test/--no-test", default=False, help="Run in test mode (no external commands)")
-def run(suite: str, config: str | None, test: bool):
+def run(suite: str, config: Optional[str], test: bool):
     """Run a benchmark suite"""
     try:
         runner.run_benchmark(suite, config, test_mode=test)
@@ -58,7 +58,7 @@ def report(results_path: str):
 @click.option("--skip-cve-bench/--no-skip-cve-bench", default=False, help="Skip the CVE-Bench step")
 @click.option("--config", type=click.Path(exists=True, dir_okay=False), default=None, help="Path to pipeline config (YAML/JSON/TOML)")
 @click.option("--dry-run/--no-dry-run", default=False, help="Validate and print resolved config; do not execute")
-def pipeline(provider: str | None, model: str, host: str, categories: str | None, max_questions: int | None, output_dir: str, verbose: bool, strands_telemetry: bool, cs_eval_local_sample: str | None, cybergym_mode: str, cybergym_server: str, cybergym_data_dir: str | None, cybergym_difficulty: str, cybergym_use_agent: bool, cvebench_root: str | None, cvebench_model: str | None, cvebench_target: tuple[str, ...], skip_cs_eval: bool, skip_cybergym: bool, skip_cve_bench: bool, config: str | None, dry_run: bool):
+def pipeline(provider: Optional[str], model: str, host: str, categories: Optional[str], max_questions: Optional[int], output_dir: str, verbose: bool, strands_telemetry: bool, cs_eval_local_sample: Optional[str], cybergym_mode: str, cybergym_server: str, cybergym_data_dir: Optional[str], cybergym_difficulty: str, cybergym_use_agent: bool, cvebench_root: Optional[str], cvebench_model: Optional[str], cvebench_target: Tuple[str, ...], skip_cs_eval: bool, skip_cybergym: bool, skip_cve_bench: bool, config: Optional[str], dry_run: bool):
     """Run the full evaluation pipeline: CS-Eval -> CyberGym -> CVE-Bench."""
     from .providers.factory import make_provider
     from .pipeline import run_pipeline
@@ -171,3 +171,295 @@ def pipeline(provider: str | None, model: str, host: str, categories: str | None
     # Compact summary to stdout
     for s in steps:
         click.echo(f"[{s.name}] {s.status} {s.results_path or ''}")
+
+
+# -----------------------------------------------------------------------------
+# Evals subcommand group
+# -----------------------------------------------------------------------------
+
+
+@main.group()  # type: ignore[attr-defined]
+def evals():
+    """Run model evaluations with the evals framework."""
+    pass
+
+
+evals = cast(Any, evals)
+
+
+@evals.command("run")  # type: ignore[attr-defined]
+@click.argument("suite_path", type=click.Path(exists=True, dir_okay=False))
+@click.option("--provider", default="ollama", help="Model provider (ollama|mock)")
+@click.option("--model", default="llama3.2", help="Model name/id")
+@click.option("--host", default="http://localhost:11434", help="Provider host URL")
+@click.option("--max-samples", type=int, default=None, help="Maximum samples to evaluate")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Output file for results (JSON)")
+@click.option("--verbose/--no-verbose", default=False, help="Enable verbose logging")
+def evals_run(suite_path: str, provider: str, model: str, host: str, max_samples: Optional[int], output: Optional[str], verbose: bool):
+    """Run an evaluation suite from a YAML config file."""
+    import asyncio
+    import json as _json
+    from .providers.factory import make_provider
+    from .evals import run_suite
+    
+    # Create provider
+    prov = make_provider(provider, model=model, host=host)
+    
+    # Build overrides
+    overrides = {}
+    if max_samples:
+        overrides["max_samples"] = max_samples
+    
+    # Run evaluation
+    try:
+        result = asyncio.run(run_suite(suite_path, prov, overrides=overrides, verbose=verbose))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(2)
+    
+    # Display results
+    click.echo(f"\n{'='*60}")
+    click.echo(f"Suite: {result.suite_name}")
+    click.echo(f"Model: {result.model_name}")
+    click.echo(f"{'='*60}")
+    click.echo(f"Total samples: {result.metrics.total}")
+    click.echo(f"Attempted: {result.metrics.attempted}")
+    click.echo(f"Failed: {result.metrics.failed}")
+    click.echo(f"Average score: {result.metrics.avg_score:.4f}")
+    click.echo(f"Pass rate: {result.metrics.pass_rate:.2%}")
+    click.echo(f"{'='*60}")
+    click.echo(f"Gate: {'✓ PASSED' if result.gate_passed else '✗ FAILED'}")
+    if result.gate_details:
+        click.echo(f"  {result.gate_details}")
+    click.echo(f"{'='*60}\n")
+    
+    # Save results if output specified
+    if output:
+        with open(output, "w", encoding="utf-8") as f:
+            _json.dump(result.model_dump(), f, indent=2, default=str)
+        click.echo(f"Results saved to: {output}")
+    
+    # Exit with appropriate code
+    sys.exit(0 if result.gate_passed else 1)
+
+
+@evals.command("validate")  # type: ignore[attr-defined]
+@click.argument("suite_path", type=click.Path(exists=True, dir_okay=False))
+def evals_validate(suite_path: str):
+    """Validate a suite configuration without running it."""
+    from .evals.suite import SuiteLoader
+    
+    errors = SuiteLoader.validate(suite_path)
+    
+    if errors:
+        click.echo("Validation FAILED:", err=True)
+        for error in errors:
+            click.echo(f"  - {error}", err=True)
+        sys.exit(1)
+    else:
+        click.echo("✓ Suite configuration is valid")
+        
+        # Show summary
+        suite = SuiteLoader.load(suite_path)
+        click.echo(f"\nSuite: {suite.name}")
+        click.echo(f"Dataset: {suite.dataset}")
+        click.echo(f"Graders: {', '.join(suite.graders.keys())}")
+        click.echo(f"Gate: {suite.gate.metric_key} {suite.gate.op.value} {suite.gate.value}")
+
+
+@evals.command("list-graders")  # type: ignore[attr-defined]
+def evals_list_graders():
+    """List available built-in grader functions."""
+    from .evals.graders import GraderRegistry
+    
+    click.echo("Tool Grader Functions:")
+    click.echo("-" * 40)
+    for name, desc in sorted(GraderRegistry.list_tool_functions().items()):
+        click.echo(f"  {name}: {desc}")
+
+
+@evals.command("list-extractors")  # type: ignore[attr-defined]
+def evals_list_extractors():
+    """List available extractors."""
+    from .evals.extractors import ExtractorRegistry
+    
+    click.echo("Available Extractors:")
+    click.echo("-" * 40)
+    for name in ExtractorRegistry.list_extractors():
+        click.echo(f"  {name}")
+
+
+# -----------------------------------------------------------------------------
+# Taxonomy subcommand group
+# -----------------------------------------------------------------------------
+
+
+@main.group()  # type: ignore[attr-defined]
+def taxonomy():
+    """Manage and explore taxonomies for evaluation classification."""
+    pass
+
+
+taxonomy = cast(Any, taxonomy)
+
+
+@taxonomy.command("list")  # type: ignore[attr-defined]
+def taxonomy_list():
+    """List all registered taxonomies."""
+    from .taxonomy import list_taxonomies, get_taxonomy
+    
+    click.echo("Registered Taxonomies:")
+    click.echo("-" * 40)
+    for name in list_taxonomies():
+        tax = get_taxonomy(name)
+        if tax:
+            click.echo(f"  {name} (v{tax.version})")
+            if tax.description:
+                click.echo(f"    {tax.description}")
+
+
+@taxonomy.command("show")  # type: ignore[attr-defined]
+@click.argument("taxonomy_name", default="cybersecurity")
+@click.option("--dimension", "-d", default=None, help="Show only this dimension")
+def taxonomy_show(taxonomy_name: str, dimension: Optional[str]):
+    """Show taxonomy structure and dimensions."""
+    from .taxonomy import get_taxonomy
+    
+    tax = get_taxonomy(taxonomy_name)
+    if tax is None:
+        click.echo(f"Taxonomy not found: {taxonomy_name}", err=True)
+        sys.exit(1)
+    
+    click.echo(f"Taxonomy: {tax.name} (v{tax.version})")
+    if tax.description:
+        click.echo(f"Description: {tax.description}")
+    click.echo("")
+    
+    dims_to_show = [tax.dimensions[dimension]] if dimension and dimension in tax.dimensions else list(tax.dimensions.values())
+    
+    for dim in dims_to_show:
+        click.echo(f"[{dim.id}] {dim.name}")
+        if dim.description:
+            click.echo(f"  {dim.description}")
+        click.echo(f"  Required: {dim.required}, Multi-select: {dim.multi_select}")
+        click.echo("  Values:")
+        
+        for node_path, node in dim.flatten().items():
+            indent = "    " + "  " * node_path.count(".")
+            click.echo(f"{indent}{node_path}: {node.name}")
+        
+        click.echo("")
+
+
+@taxonomy.command("validate")  # type: ignore[attr-defined]
+@click.argument("labels", nargs=-1)
+@click.option("--taxonomy", "-t", "taxonomy_name", default="cybersecurity", help="Taxonomy to validate against")
+def taxonomy_validate(labels: Tuple[str, ...], taxonomy_name: str):
+    """Validate taxonomy labels (format: dimension=value)."""
+    from .taxonomy import get_taxonomy
+    
+    tax = get_taxonomy(taxonomy_name)
+    if tax is None:
+        click.echo(f"Taxonomy not found: {taxonomy_name}", err=True)
+        sys.exit(1)
+    
+    parsed: dict[str, str | list[str]] = {}
+    for label in labels:
+        if "=" not in label:
+            click.echo(f"Invalid format: {label} (expected dimension=value)", err=True)
+            sys.exit(1)
+        dim, val = label.split("=", 1)
+        if dim in parsed:
+            existing = parsed[dim]
+            if isinstance(existing, list):
+                existing.append(val)
+            else:
+                parsed[dim] = [existing, val]
+        else:
+            parsed[dim] = val
+    
+    errors = tax.validate_labels(parsed)
+    
+    if errors:
+        click.echo("Validation FAILED:", err=True)
+        for error in errors:
+            click.echo(f"  - {error}", err=True)
+        sys.exit(1)
+    else:
+        click.echo("✓ Labels are valid")
+
+
+@taxonomy.command("map")  # type: ignore[attr-defined]
+@click.argument("dataset_path", type=click.Path(exists=True))
+@click.option("--mapper", "-m", default="auto", help="Mapper to use: 'auto', 'cs_eval', 'cybergym', 'cve_bench', or path to YAML")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Output enriched dataset to file")
+@click.option("--preview", type=int, default=5, help="Number of samples to preview")
+def taxonomy_map(dataset_path: str, mapper: str, output: Optional[str], preview: int):
+    """Map taxonomy labels to samples in a dataset."""
+    import json as _json
+    from .taxonomy import AutoMapper, TaxonomyMapper, create_cs_eval_mapper, create_cybergym_mapper, create_cve_bench_mapper
+    from .evals.dataset import load_dataset_list
+    
+    # Create mapper
+    if mapper == "auto":
+        tax_mapper = AutoMapper()
+        rule_mapper = None
+    elif mapper == "cs_eval":
+        tax_mapper = AutoMapper()
+        rule_mapper = create_cs_eval_mapper()
+    elif mapper == "cybergym":
+        tax_mapper = AutoMapper()
+        rule_mapper = create_cybergym_mapper()
+    elif mapper == "cve_bench":
+        tax_mapper = AutoMapper()
+        rule_mapper = create_cve_bench_mapper()
+    else:
+        # Assume it's a path to YAML
+        tax_mapper = AutoMapper()
+        rule_mapper = TaxonomyMapper.from_yaml(mapper)
+    
+    # Load dataset
+    try:
+        samples = load_dataset_list(dataset_path)
+    except Exception as e:
+        click.echo(f"Error loading dataset: {e}", err=True)
+        sys.exit(1)
+    
+    click.echo(f"Loaded {len(samples)} samples from {dataset_path}")
+    
+    # Map samples
+    enriched_samples = []
+    for sample in samples:
+        sample_dict = sample.model_dump()
+        
+        # Apply rule-based mapping first if available
+        if rule_mapper:
+            mapped = rule_mapper.map(sample_dict)
+            sample_dict["taxonomy"] = mapped.labels
+        
+        # Enrich with auto-inference
+        inferred = tax_mapper.infer(sample_dict)
+        if "taxonomy" in sample_dict and sample_dict["taxonomy"]:
+            # Merge: existing takes precedence
+            for dim, val in inferred.labels.items():
+                if dim not in sample_dict["taxonomy"]:
+                    sample_dict["taxonomy"][dim] = val
+        else:
+            sample_dict["taxonomy"] = inferred.labels
+        
+        enriched_samples.append(sample_dict)
+    
+    # Preview
+    click.echo(f"\nPreview ({min(preview, len(enriched_samples))} samples):")
+    click.echo("-" * 60)
+    for i, sample in enumerate(enriched_samples[:preview]):
+        click.echo(f"\n[{i+1}] ID: {sample.get('id')}")
+        click.echo(f"    Input: {sample.get('input', '')[:80]}...")
+        click.echo(f"    Taxonomy: {sample.get('taxonomy', {})}")
+    
+    # Output if specified
+    if output:
+        with open(output, "w", encoding="utf-8") as f:
+            for sample in enriched_samples:
+                f.write(_json.dumps(sample) + "\n")
+        click.echo(f"\n✓ Enriched dataset saved to: {output}")

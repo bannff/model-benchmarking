@@ -1,0 +1,76 @@
+# Example taxonomy mapping for CS-Eval
+# Maps CS-Eval categories to the cybersecurity taxonomy
+
+rules:
+  # Domain mappings (from CS-Eval categories)
+  - dimension: domain
+    target: network
+    field: category
+    exact: ["Network Security"]
+  
+  - dimension: domain
+    target: web
+    field: category
+    exact: ["Web Security"]
+  
+  - dimension: domain
+    target: cloud
+    field: category
+    exact: ["Cloud Security"]
+  
+  - dimension: domain
+    target: mobile
+    field: category
+    exact: ["Mobile Security"]
+  
+  - dimension: domain
+    target: database
+    field: category
+    exact: ["Database Security"]
+  
+  - dimension: domain
+    target: binary
+    field: category
+    exact: ["System Security", "Software Security"]
+  
+  # Capability mappings
+  - dimension: capability
+    target: cryptography
+    field: category
+    exact: ["Cryptography"]
+  
+  - dimension: capability
+    target: forensics
+    field: category
+    exact: ["Digital Forensics"]
+  
+  - dimension: capability
+    target: security_operations
+    field: category
+    exact: ["Risk Management", "Security Management"]
+  
+  # Evaluation type - CS-Eval is knowledge-based
+  - dimension: eval_type
+    target: knowledge
+    field: category
+    pattern: ".*"  # Match all
+    priority: -10
+
+  # Difficulty inference from subcategory (if available)
+  - dimension: difficulty
+    target: level1
+    field: subcategory
+    contains: ["Basic", "Fundamental", "Introduction"]
+    priority: 1
+  
+  - dimension: difficulty
+    target: level2
+    field: subcategory
+    contains: ["Intermediate", "Standard"]
+    priority: 1
+  
+  - dimension: difficulty
+    target: level3
+    field: subcategory
+    contains: ["Advanced", "Expert", "Complex"]
+    priority: 1
