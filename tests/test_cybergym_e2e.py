@@ -2,7 +2,7 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
-from model_benchmarking.providers.mock import MockProvider
+from runtime.providers.mock import MockProvider
 
 
 def _import_cg_module():

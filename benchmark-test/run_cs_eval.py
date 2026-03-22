@@ -2,7 +2,7 @@
 """Wrapper to run CS-Eval via the new model_benchmarking package if available."""
 import sys
 try:
-    from model_benchmarking import run_benchmark
+    from runtime import run_benchmark
     run_benchmark('cs-eval')
 except Exception:
     # Fallback to original script

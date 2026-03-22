@@ -81,8 +81,8 @@ def run_cybergym_with_provider(
     sandbox = None
     if use_agent:
         try:
-            from model_benchmarking.agents.sandbox import LocalSandbox  # type: ignore
-            from model_benchmarking.agents.strands_workflow import StrandsWorkflow  # type: ignore
+            from mcp.agents.sandbox import LocalSandbox  # type: ignore
+            from mcp.agents.strands_workflow import StrandsWorkflow  # type: ignore
             # Pull model/host parameters from provider if available, else defaults
             model_name = getattr(provider, "model", "llama3.2")
             host = getattr(provider, "base_url", getattr(provider, "host", "http://localhost:11434"))

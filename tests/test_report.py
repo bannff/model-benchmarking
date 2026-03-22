@@ -1,5 +1,5 @@
 import os
-from model_benchmarking.report import generate_report
+from mcp.report import generate_report
 
 
 def test_generate_report_creates_file(tmp_path):

@@ -1,6 +1,6 @@
 import pytest
 
-from model_benchmarking.runner import run_benchmark, BenchmarkResult
+from mcp.runner import run_benchmark, BenchmarkResult
 
 
 def test_run_benchmark_unknown_suite():

@@ -8,9 +8,9 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from model_benchmarking.config import load_config_file, deep_merge
-from model_benchmarking.providers.factory import make_provider
-from model_benchmarking.pipeline import run_pipeline
+from runtime.config import load_config_file, deep_merge
+from runtime.providers.factory import make_provider
+from mcp.pipeline import run_pipeline
 
 
 def main() -> int:

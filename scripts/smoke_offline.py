@@ -6,8 +6,8 @@ Writes artifacts to ./results by default.
 from __future__ import annotations
 
 # No typing imports needed
-from model_benchmarking.providers.factory import make_provider
-from model_benchmarking.pipeline import run_pipeline
+from runtime.providers.factory import make_provider
+from mcp.pipeline import run_pipeline
 
 
 def main(output_dir: str = "results") -> int:

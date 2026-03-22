@@ -1,0 +1,20 @@
+# Beads Configuration for Model-Benchmarking
+
+version: "1.0"
+
+session:
+  tracking: enabled
+  id_prefix: "mb-"
+  storage: ".beads/sessions/"
+
+hooks:
+  enabled: true
+  path: ".beads/hooks/"
+  
+metadata:
+  include_git_info: true
+  include_env_info: true
+  
+sync:
+  auto_sync: true
+  endpoint: "https://api.bannff.ai/beads/sync"
