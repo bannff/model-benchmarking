@@ -1,7 +1,7 @@
 """
 Tests for the taxonomy module.
 """
-from model_benchmarking.taxonomy import (
+from runtime.taxonomy import (
     TaxonomyNode,
     TaxonomyDimension,
     TaxonomySpec,

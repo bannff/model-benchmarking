@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
-from model_benchmarking.evals import (
+from runtime.evals import (
     Sample,
     GradeResult,
     SampleResult,
@@ -25,8 +25,8 @@ from model_benchmarking.evals import (
     GateSpec,
     ExtractorSpec,
 )
-from model_benchmarking.evals.dataset import load_dataset, load_dataset_list
-from model_benchmarking.evals.extractors import (
+from runtime.evals.dataset import load_dataset, load_dataset_list
+from runtime.evals.extractors import (
     ExtractorRegistry,
     get_extractor,
     LastAssistantExtractor,
@@ -34,14 +34,14 @@ from model_benchmarking.evals.extractors import (
     RegexCaptureExtractor,
     CodeBlockExtractor,
 )
-from model_benchmarking.evals.graders import (
+from runtime.evals.graders import (
     ToolGrader,
     TOOL_GRADER_FUNCTIONS,
     GraderRegistry,
 )
-from model_benchmarking.evals.gates import GateEvaluator, calculate_metrics, check_gate
-from model_benchmarking.evals.suite import SuiteLoader, load_suite
-from model_benchmarking.evals.runner import EvalRunner
+from runtime.evals.gates import GateEvaluator, calculate_metrics, check_gate
+from runtime.evals.suite import SuiteLoader, load_suite
+from runtime.evals.runner import EvalRunner
 
 
 # =============================================================================
