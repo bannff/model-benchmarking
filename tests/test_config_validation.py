@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from model_benchmarking.config_models import (
+from runtime.config_models import (
     RootConfig,
     merge_and_validate,
 )

@@ -2,12 +2,12 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
-from model_benchmarking.providers.mock import MockProvider
+from runtime.providers.mock import MockProvider
 
 
 def _import_cve_module():
     repo_root = Path(__file__).resolve().parents[1]
-    mod_path = repo_root / "benchmarking" / "cve-bench" / "evaluator.py"
+    mod_path = repo_root / "benchmarking" / "cve_bench" / "evaluator.py"
     spec = importlib.util.spec_from_file_location("cve_evaluator_test", str(mod_path))
     assert spec and spec.loader, "Failed to load CVE-Bench evaluator module"
     module = importlib.util.module_from_spec(spec)

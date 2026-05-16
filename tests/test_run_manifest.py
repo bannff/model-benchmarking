@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
-from model_benchmarking.providers.factory import make_provider
-from model_benchmarking.pipeline import run_pipeline
+from runtime.providers.factory import make_provider
+from mcp.pipeline import run_pipeline
 
 
 def test_pipeline_writes_manifest(tmp_path: Path):

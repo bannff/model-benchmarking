@@ -14,10 +14,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from model_benchmarking.providers.factory import make_provider
-from model_benchmarking.pipeline import run_pipeline
-from model_benchmarking.config import load_config_file, deep_merge
-from model_benchmarking.config_models import RootConfig
+from runtime.providers.factory import make_provider
+from mcp.pipeline import run_pipeline
+from runtime.config import load_config_file, deep_merge
+from runtime.config_models import RootConfig
 
 EXAMPLE_CFG = Path(__file__).resolve().parents[1] / "configs" / "examples" / "pipeline.agent_cybergym.yaml"
 

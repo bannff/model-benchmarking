@@ -1,0 +1,44 @@
+name: 🐛 Bug Report
+description: Report a bug to help us improve Model-Benchmarking.
+labels: [bug, unconfirmed]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the form below.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what you saw!
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: How do we get to that state?
+      placeholder: |
+        1. Run `mbenchmark run --suite cs-eval`
+        2. Set provider to `ollama`
+        3. Observe the crash...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: What did you expect?
+      description: What should have happened?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Model-Benchmarking Version
+      description: Which version are you using?
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context or screenshots about the problem here.
