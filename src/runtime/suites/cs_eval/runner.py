@@ -22,14 +22,12 @@ async def run_cs_eval(
     verbose: bool = False
 ) -> Dict[str, Any]:
     """
-    Run the CS-Eval benchmark.
-    
-    Returns:
-        A dictionary containing scores, results, and metadata.
+    Run the CS-Eval benchmark using the concurrent EvalRunner.
     """
-    start_time = time.time()
+    from ...evals.models import Sample, SuiteSpec, ToolGraderSpec, GateSpec, Aggregation, GateOperator
+    from ...evals.runner.core import EvalRunner
     
-    # Load and parse
+    # 1. Load and parse questions
     raw_dataset = load_cs_eval_dataset(local_path=local_sample, verbose=verbose)
     all_questions = parse_questions(raw_dataset, verbose=verbose)
     target_questions = filter_questions(all_questions, categories, max_questions)
@@ -37,48 +35,72 @@ async def run_cs_eval(
     if verbose:
         print(f"🚀 Running CS-Eval on {len(target_questions)} questions...")
 
+    # 2. Map to Samples
+    samples = []
+    for q in target_questions:
+        samples.append(Sample(
+            id=q.id,
+            input=q.question,
+            ground_truth=q.answer,
+            metadata={
+                "category": q.category,
+                "subcategory": q.subcategory,
+                "options": q.options,
+                "question_type": q.question_type
+            }
+        ))
+    
+    # 3. Construct a virtual SuiteSpec for EvalRunner
+    spec = SuiteSpec(
+        name="cs-eval",
+        dataset=local_sample or "memory",
+        graders={
+            "default": ToolGraderSpec(function="exact_match")
+        },
+        gate=GateSpec(
+            metric_key="default",
+            aggregation=Aggregation.AVG,
+            op=GateOperator.GTE,
+            value=0.0
+        ),
+        max_concurrent=10
+    )
+    
+    # 4. Run via concurrent EvalRunner
+    runner = EvalRunner(spec, provider, verbose=verbose)
+    runner_result = await runner.run(samples=samples)
+    
+    # 5. Map back to legacy format for reporting compatibility
     results = []
     correct_count = 0
-    
-    for i, q in enumerate(target_questions):
-        # Interact with model
-        resp = provider.evaluate_question(
-            question=q.question,
-            options=q.options,
-            question_type=q.question_type
-        )
-        
-        parsed = resp.get("parsed_response", "A")
-        is_correct = (parsed.strip().upper() == q.answer.strip().upper())
+    for r in runner_result.results:
+        is_correct = r.grade.score >= 1.0
         if is_correct:
             correct_count += 1
             
         results.append({
-            "id": q.id,
-            "category": q.category,
-            "subcategory": q.subcategory,
-            "question": q.question,
-            "options": q.options,
-            "expected": q.answer,
-            "predicted": parsed,
+            "id": r.sample.id,
+            "category": r.sample.metadata.get("category"),
+            "subcategory": r.sample.metadata.get("subcategory"),
+            "question": r.sample.input,
+            "options": r.sample.metadata.get("options"),
+            "expected": r.sample.ground_truth,
+            "predicted": r.submission,
             "is_correct": is_correct,
-            "raw_response": resp.get("raw_response", "")
+            "raw_response": r.response
         })
-        
-        if verbose and (i + 1) % 10 == 0:
-            print(f"  [{i+1}/{len(target_questions)}] Current Accuracy: {correct_count/(i+1):.1%}")
-
-    duration = time.time() - start_time
-    accuracy = correct_count / len(target_questions) if target_questions else 0.0
     
     return {
         "suite": "cs_eval",
-        "timestamp": datetime.now().isoformat(),
-        "duration_seconds": duration,
+        "timestamp": runner_result.started_at,
+        "duration_seconds": (
+            datetime.fromisoformat(runner_result.finished_at.replace("Z", "+00:00")) - 
+            datetime.fromisoformat(runner_result.started_at.replace("Z", "+00:00"))
+        ).total_seconds(),
         "metrics": {
-            "total": len(target_questions),
+            "total": len(results),
             "correct": correct_count,
-            "accuracy": accuracy
+            "accuracy": correct_count / len(results) if results else 0.0
         },
         "results": results
     }

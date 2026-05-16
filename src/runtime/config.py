@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 import json
-import os
+from pathlib import Path
 
 try:
     import yaml  # type: ignore
@@ -38,13 +38,16 @@ def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]
     return out
 
 
-def load_config_file(path: str | None) -> Dict[str, Any]:
+def load_config_file(path: str | Path | None) -> Dict[str, Any]:
     if not path:
         return {}
-    if not os.path.exists(path):
-        raise FileNotFoundError(path)
-    _, ext = os.path.splitext(path.lower())
-    with open(path, "rb") as f:
+    
+    config_path = Path(path)
+    if not config_path.exists():
+        raise FileNotFoundError(str(config_path))
+    
+    ext = config_path.suffix.lower()
+    with open(config_path, "rb") as f:
         data: Dict[str, Any]
         if ext in (".yml", ".yaml"):
             if yaml is None:

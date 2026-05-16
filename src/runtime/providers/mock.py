@@ -22,7 +22,7 @@ class MockProvider:
             self.choice = "A"
         self.text = text
 
-    def evaluate_question(
+    async def evaluate_question(
         self,
         question: str,
         options: Optional[List[str]] = None,
@@ -38,9 +38,9 @@ class MockProvider:
             "context_echo": context[:50],
         }
 
-    def batch_evaluate(self, questions: List[Dict[str, Any]], batch_size: int = 10) -> List[Dict[str, Any]]:
+    async def batch_evaluate(self, questions: List[Dict[str, Any]], batch_size: int = 10) -> List[Dict[str, Any]]:
         return [
-            self.evaluate_question(
+            await self.evaluate_question(
                 q.get("question", ""),
                 q.get("options"),
                 q.get("context", ""),
@@ -49,6 +49,6 @@ class MockProvider:
             for q in questions
         ]
 
-    def generate_text(self, prompt: str) -> str:
+    async def generate_text(self, prompt: str) -> str:
         # Return a short deterministic text including a hash of the prompt length
         return f"{self.text} ({len(prompt)})"

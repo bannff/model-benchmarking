@@ -37,7 +37,7 @@ class BaseGrader(ABC):
         return self.extractor.extract(response, **kwargs)
     
     @abstractmethod
-    def grade(
+    async def grade(
         self,
         sample: Sample,
         submission: str,
@@ -56,7 +56,7 @@ class BaseGrader(ABC):
         """
         pass
     
-    def grade_response(
+    async def grade_response(
         self,
         sample: Sample,
         response: str,
@@ -79,7 +79,7 @@ class BaseGrader(ABC):
                 score=0.0,
                 rationale="Empty submission after extraction",
             )
-        return self.grade(sample, submission, **kwargs)
+        return await self.grade(sample, submission, **kwargs)
 
 
 def normalize_text(text: str, config: Optional[Dict[str, Any]] = None) -> str:

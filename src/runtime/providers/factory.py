@@ -1,14 +1,32 @@
-"""Provider factory for model adapters."""
+"""Provider factory for model adapters using a dynamic registry."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Type
 from .base import BaseProvider
+from ..utils.registry import Registry
 from ..constants import (
     DEFAULT_OLLAMA_HOST,
     DEFAULT_TEMPERATURE,
     DEFAULT_TOP_P,
     DEFAULT_MAX_TOKENS,
 )
+
+provider_registry = Registry[BaseProvider]("providers")
+
+@provider_registry.register("ollama")
+def create_ollama(model: str, host: str, **kwargs) -> BaseProvider:
+    from .ollama_http import OllamaHttpProvider
+    return OllamaHttpProvider(model=model, base_url=host, **kwargs)
+
+@provider_registry.register("strands-ollama")
+def create_strands(model: str, host: str, **kwargs) -> BaseProvider:
+    from .strands_ollama import StrandsOllamaProvider
+    return StrandsOllamaProvider(model=model, host=host, **kwargs)
+
+@provider_registry.register("mock")
+def create_mock(**kwargs) -> BaseProvider:
+    from .mock import MockProvider
+    return MockProvider()
 
 
 def make_provider(
@@ -21,33 +39,16 @@ def make_provider(
     max_tokens: int = DEFAULT_MAX_TOKENS,
     use_strands: bool = False,
 ) -> BaseProvider:
-    provider = (provider or "").lower()
+    provider = (provider or "ollama").lower()
+    
+    if use_strands and provider == "ollama":
+        provider = "strands-ollama"
 
-    if provider in ("strands-ollama",) or (use_strands and provider in ("ollama", "")):
-        from .strands_ollama import StrandsOllamaProvider
-
-        return StrandsOllamaProvider(
-            model=model,
-            host=host,
-            temperature=temperature,
-            top_p=top_p,
-            max_tokens=max_tokens,
-        )
-
-    if provider in ("ollama", ""):
-        from .ollama_http import OllamaHttpProvider
-
-        return OllamaHttpProvider(
-            model=model,
-            base_url=host,
-            temperature=temperature,
-            top_p=top_p,
-            max_tokens=max_tokens,
-        )
-
-    if provider == "mock":
-        from .mock import MockProvider
-
-        return MockProvider()
-
-    raise ValueError(f"Unknown provider: {provider}")
+    return provider_registry.create(
+        provider,
+        model=model,
+        host=host,
+        temperature=temperature,
+        top_p=top_p,
+        max_tokens=max_tokens
+    )

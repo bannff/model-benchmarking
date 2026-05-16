@@ -57,7 +57,7 @@ class StrandsOllamaProvider:
                 return ch
         return "A"
 
-    def evaluate_question(
+    async def evaluate_question(
         self,
         question: str,
         options: Optional[List[str]] = None,
@@ -75,7 +75,8 @@ class StrandsOllamaProvider:
 
         provider_metrics: Dict[str, Any] | None = None
         try:
-            result = self._agent(prompt)
+            import asyncio
+            result = await asyncio.to_thread(self._agent, prompt)
             text = (getattr(result, "text", None) or getattr(result, "message", None) or str(result)).strip()
             # Best-effort extraction of metrics in a JSON-safe way
             if hasattr(result, "metrics"):
@@ -97,22 +98,29 @@ class StrandsOllamaProvider:
             out["provider_metrics"] = provider_metrics
         return out
 
-    def batch_evaluate(self, questions: List[Dict[str, Any]], batch_size: int = 10) -> List[Dict[str, Any]]:
-        results: List[Dict[str, Any]] = []
-        for q in questions:
-            r = self.evaluate_question(
-                q.get("question", ""),
-                q.get("options"),
-                q.get("context", ""),
-                q.get("question_type", "multiple_choice"),
-            )
-            results.append(r)
-        return results
+    async def batch_evaluate(
+        self, questions: List[Dict[str, Any]], batch_size: int = 10
+    ) -> List[Dict[str, Any]]:
+        import asyncio
+        semaphore = asyncio.Semaphore(batch_size)
 
-    def generate_text(self, prompt: str) -> str:
+        async def _eval(q: Dict[str, Any]) -> Dict[str, Any]:
+            async with semaphore:
+                return await self.evaluate_question(
+                    q.get("question", ""),
+                    q.get("options"),
+                    q.get("context", ""),
+                    q.get("question_type", "multiple_choice"),
+                )
+
+        tasks = [_eval(q) for q in questions]
+        return await asyncio.gather(*tasks)
+
+    async def generate_text(self, prompt: str) -> str:
         """Generic text generation for non-MCQ tasks using the Strands agent."""
         try:
-            result = self._agent(prompt)
+            import asyncio
+            result = await asyncio.to_thread(self._agent, prompt)
             return (getattr(result, "text", None) or getattr(result, "message", None) or str(result)).strip()
         except Exception as e:  # pragma: no cover - runtime dependent
             return f"ERROR: {e}"
