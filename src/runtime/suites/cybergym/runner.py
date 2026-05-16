@@ -43,9 +43,9 @@ async def run_cybergym(
         )
         
         if hasattr(provider, "generate_text"):
-            response = provider.generate_text(full_prompt)
+            response = await provider.generate_text(full_prompt)
         else:
-            resp_dict = provider.evaluate_question(full_prompt, question_type="freeform")
+            resp_dict = await provider.evaluate_question(full_prompt, question_type="freeform")
             response = resp_dict.get("raw_response", "")
             
         # For simulation mode (default), we assume success if response is non-empty and not error

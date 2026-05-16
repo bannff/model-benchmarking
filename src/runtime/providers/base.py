@@ -22,7 +22,7 @@ class BaseProvider(Protocol):
     - generate_text: General-purpose text generation for non-MCQ tasks.
     """
 
-    def evaluate_question(
+    async def evaluate_question(
         self,
         question: str,
         options: Optional[List[str]] = None,
@@ -31,13 +31,10 @@ class BaseProvider(Protocol):
     ) -> Dict[str, Any]:
         ...
 
-    def batch_evaluate(
+    async def batch_evaluate(
         self, questions: List[Dict[str, Any]], batch_size: int = 10
     ) -> List[Dict[str, Any]]:
         ...
 
-    def generate_text(self, prompt: str) -> str:
-        ...
-
-    async def generate_text_async(self, prompt: str) -> str:
+    async def generate_text(self, prompt: str) -> str:
         ...

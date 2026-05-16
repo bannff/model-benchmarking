@@ -1,8 +1,13 @@
 from __future__ import annotations
+
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+from ...utils.registry import Registry
 from .rules import MappingRule
 from .runner import TaxonomyMapper
+
+mapper_registry = Registry[TaxonomyMapper]("taxonomy_mappers")
 
 def create_cs_eval_mapper() -> TaxonomyMapper:
     """Create a mapper for CS-Eval categories."""
@@ -54,6 +59,9 @@ def create_cs_eval_mapper() -> TaxonomyMapper:
     return mapper
 
 
+mapper_registry.register("cs_eval")(create_cs_eval_mapper)
+
+
 def create_cybergym_mapper() -> TaxonomyMapper:
     """Create a mapper for CyberGym tasks."""
     mapper = TaxonomyMapper("cybersecurity")
@@ -91,6 +99,9 @@ def create_cybergym_mapper() -> TaxonomyMapper:
     return mapper
 
 
+mapper_registry.register("cybergym")(create_cybergym_mapper)
+
+
 def create_cve_bench_mapper() -> TaxonomyMapper:
     """Create a mapper for CVE-Bench challenges."""
     mapper = TaxonomyMapper("cybersecurity")
@@ -111,3 +122,6 @@ def create_cve_bench_mapper() -> TaxonomyMapper:
     ))
     
     return mapper
+
+
+mapper_registry.register("cve_bench")(create_cve_bench_mapper)

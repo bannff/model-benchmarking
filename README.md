@@ -5,18 +5,18 @@
 [![Status: Agent-Ready](https://img.shields.io/badge/Status-Agent_Ready-blueviolet.svg)](AGENTS.md)
 [![Build: 100% Green](https://img.shields.io/badge/Build-100%25_Green-brightgreen.svg)]()
 
-> **The gold standard for cybersecurity model evaluation.**  
-> A unified framework designed to push the boundaries of LLM security capabilities through rigorous, taxonomy-aligned benchmarking. Built with pristine `<200 LOC` Clean Architecture and generative QA validation.
+> **A cybersecurity benchmarking framework for model evaluation.**
+> The repository provides a taxonomy-aligned evaluation pipeline, adapter-based suite orchestration, and a compatibility layer for the current public API.
 
 ---
 
-## ✨ Engineering Prestige
+## Engineering Overview
 
-This repository adheres to the strict **Python-Factory Standard**, making it an optimal environment for both human engineers and AI agents:
-1. **Clean Architecture**: Strict separation of concerns between `src/model_benchmarking_cli/` (adapters, CLI, and external tools) and `src/runtime/` (core domain evaluation logic).
-2. **Strict Component Limits**: Formally enforced `<200 LOC` module compliance for frictionless AI agent collaboration and cognitive load reduction.
-3. **Property-Based QA**: End-to-end evaluation determinism secured by `pytest` workflows and `hypothesis` generative fuzzing constraints. 
-4. **Agent Control Plane**: Fully governed by `.agents/` workflows and `.beads/` tracking for out-of-the-box MCP integration and autonomous maintenance loops.
+This repository separates the public CLI and compatibility wrappers from the core runtime:
+1. **CLI boundary**: `src/model_benchmarking_cli/` contains the public command surface and adapter wiring.
+2. **Runtime core**: `src/runtime/` holds providers, suites, taxonomy, and evaluation logic.
+3. **Compatibility layer**: `src/mcp/` remains as a transitional import surface for existing callers and tests.
+4. **Repo guidance**: `.agents/` contains workflow and steering notes for contributors and agents.
 
 ---
 

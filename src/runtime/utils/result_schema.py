@@ -7,7 +7,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict
 from datetime import datetime, timezone
 import json
-import os
+from pathlib import Path
 
 
 @dataclass
@@ -31,16 +31,17 @@ def iso_now() -> str:
 
 
 def write_manifest(envelope: ResultEnvelope, output_dir: str) -> str:
-    os.makedirs(output_dir, exist_ok=True)
-    path = os.path.join(output_dir, f"manifest_{envelope.run_id}.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(envelope.to_dict(), f, indent=2)
-    return path
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    path = output_path / f"manifest_{envelope.run_id}.json"
+    path.write_text(json.dumps(envelope.to_dict(), indent=2), encoding="utf-8")
+    return str(path)
 
 
 def append_index(envelope: ResultEnvelope, output_dir: str) -> str:
-    os.makedirs(output_dir, exist_ok=True)
-    idx = os.path.join(output_dir, "index.jsonl")
-    with open(idx, "a", encoding="utf-8") as f:
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    idx = output_path / "index.jsonl"
+    with idx.open("a", encoding="utf-8") as f:
         f.write(json.dumps(envelope.to_dict()) + "\n")
-    return idx
+    return str(idx)

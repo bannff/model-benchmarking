@@ -104,26 +104,16 @@ def taxonomy_validate(labels: Tuple[str, ...], taxonomy_name: str):
 def taxonomy_map(dataset_path: str, mapper: str, output: Optional[str], preview: int):
     """Map taxonomy labels to samples in a dataset."""
     import json as _json
-    from runtime.taxonomy import AutoMapper, TaxonomyMapper, create_cs_eval_mapper, create_cybergym_mapper, create_cve_bench_mapper
-    from runtime.evals.dataset import load_dataset_list
+    from runtime.taxonomy import AutoMapper, TaxonomyMapper, mapper_registry
+    from runtime.evals.dataset.core import load_dataset_list
     
     # Create mapper
+    tax_mapper = AutoMapper()
     if mapper == "auto":
-        tax_mapper = AutoMapper()
         rule_mapper = None
-    elif mapper == "cs_eval":
-        tax_mapper = AutoMapper()
-        rule_mapper = create_cs_eval_mapper()
-    elif mapper == "cybergym":
-        tax_mapper = AutoMapper()
-        rule_mapper = create_cybergym_mapper()
-    elif mapper == "cve_bench":
-        tax_mapper = AutoMapper()
-        rule_mapper = create_cve_bench_mapper()
     else:
-        # Assume it's a path to YAML
-        tax_mapper = AutoMapper()
-        rule_mapper = TaxonomyMapper.from_yaml(mapper)
+        mapper_factory = mapper_registry.get(mapper)
+        rule_mapper = mapper_factory() if mapper_factory else TaxonomyMapper.from_yaml(mapper)
     
     # Load dataset
     try:
