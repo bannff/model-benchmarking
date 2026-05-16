@@ -1,6 +1,6 @@
 import json
 from click.testing import CliRunner
-from model_benchmarking.cli import main
+from mcp.cli import main
 
 def test_pipeline_dry_run_shows_plan(tmp_path):
     runner = CliRunner()

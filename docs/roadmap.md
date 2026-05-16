@@ -4,37 +4,37 @@ This document outlines prioritized, high-impact improvements to make the reposit
 
 ## Quick Wins (High Value, Low Risk)
 
-1) Unified Result Schema and Manifests
+1) Unified Result Schema and Manifests [COMPLETED]
 - Define a minimal result envelope used by all suites and the pipeline:
   - run_id, suite, model, provider, started_at, finished_at, status
   - metrics: { overall_accuracy, per_category, duration_s, ... }
   - artifacts: { results_path, report_path, logs_path, suite_specific: {} }
 - Write a per-run manifest and append to a results index.
 
-2) Config Validation with Pydantic
+2) Config Validation with Pydantic [COMPLETED]
 - Strongly-typed config models for provider, pipeline, and each suite.
 - CLI `--dry-run` to validate and print resolved config & step plan.
 
 3) Logging and Run IDs
 - Create a run_id (timestamp + short hash) and structured logging (JSONL) per run.
 
-4) Provider Interface Contract
-- Protocol/ABC in `src/model_benchmarking/providers/base.py` with:
+4) Provider Interface Contract [COMPLETED]
+- Protocol/ABC in `src/runtime/providers/base.py` with:
   - generate_text(prompt) -> str
   - evaluate_question(question, options?, context?) -> dict
   - batch_evaluate(list[dict], batch_size) -> list[dict]
 
-5) CLI UX Polish
+5) CLI UX Polish [COMPLETED]
 - Subcommands: `mbenchmark suite <name>` for individual suite runners, keep `pipeline` for end-to-end.
 - Add `--dry-run` to show resolved config, active steps, and environment checks.
 
 ## Structural Refactors (Medium Effort, High Payoff)
 
-6) Package the benchmark trees
-- Convert `benchmarking/` subtrees into proper packages under `benchmarks/` (e.g., `benchmarks/cs_eval/`).
+6) Package the benchmark trees [COMPLETED]
+- Convert `benchmarking/` subtrees into proper packages under `src/runtime/suites/`.
 - Replace hyphenated dirs with underscore names, add `__init__.py`, and centralize runner APIs.
 
-7) Suite Plugin Interface
+7) Suite Plugin Interface [COMPLETED]
 - Define `Suite` base interface with a single `run()` that receives provider, validated config, output_dir, run_id, logger.
 - Returns the standardized result envelope and artifacts.
 
@@ -46,7 +46,7 @@ This document outlines prioritized, high-impact improvements to make the reposit
 
 ## Testing and Quality
 
-10) Config & Pipeline Tests
+10) Config & Pipeline Tests [COMPLETED]
 - Tests for config validation errors, provider factory edge cases, skip logic, and result schema snapshot.
 
 11) Pre-commit Hooks (Optional)
@@ -57,10 +57,10 @@ This document outlines prioritized, high-impact improvements to make the reposit
 12) Adaptive Batch Sizing for CS‑Eval
 - Backoff/scale based on response latency.
 
-13) Optional Concurrency in Providers
+13) Optional Concurrency in Providers [COMPLETED]
 - Async `batch_evaluate` with bounded concurrency for HTTP providers like Ollama.
 
-14) Resource Isolation for CVE‑Bench / CyberGym
+14) Resource Isolation for CVE‑Bench / CyberGym [COMPLETED]
 - Document and optionally enforce cgroup limits, non-root users, and network isolation.
 
 ## Docs & DX

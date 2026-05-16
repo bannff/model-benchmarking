@@ -9,6 +9,9 @@
 *.npz
 model.safetensors*
 
+# hypothesis testing cache
+.hypothesis/
+
 # Python cache
 __pycache__/
 *.pyc

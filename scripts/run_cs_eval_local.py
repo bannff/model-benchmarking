@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from model_benchmarking.providers.factory import make_provider
+from runtime.providers.factory import make_provider
 
 
 def main() -> int:
