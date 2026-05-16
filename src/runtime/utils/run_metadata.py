@@ -7,12 +7,12 @@ import hashlib
 import os
 import platform
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 
 def new_run_id(prefix: str | None = None) -> str:
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     rand = hashlib.sha1(os.urandom(16)).hexdigest()[:6]
     base = f"{ts}-{rand}"
     return f"{prefix}-{base}" if prefix else base

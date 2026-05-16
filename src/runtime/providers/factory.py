@@ -3,16 +3,22 @@ from __future__ import annotations
 
 from typing import Any
 from .base import BaseProvider
+from ..constants import (
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_TEMPERATURE,
+    DEFAULT_TOP_P,
+    DEFAULT_MAX_TOKENS,
+)
 
 
 def make_provider(
     provider: str,
     *,
     model: str,
-    host: str = "http://localhost:11434",
-    temperature: float = 0.1,
-    top_p: float = 0.9,
-    max_tokens: int = 256,
+    host: str = DEFAULT_OLLAMA_HOST,
+    temperature: float = DEFAULT_TEMPERATURE,
+    top_p: float = DEFAULT_TOP_P,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
     use_strands: bool = False,
 ) -> BaseProvider:
     provider = (provider or "").lower()

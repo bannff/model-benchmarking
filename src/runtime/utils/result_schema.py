@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, asdict
 from typing import Any, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import os
 
@@ -27,7 +27,7 @@ class ResultEnvelope:
 
 
 def iso_now() -> str:
-    return datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    return datetime.now(timezone.utc).isoformat(timespec="seconds") + "Z"
 
 
 def write_manifest(envelope: ResultEnvelope, output_dir: str) -> str:

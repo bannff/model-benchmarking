@@ -29,7 +29,7 @@ This directory contains the knowledge base and blueprints for your operations:
 ## 🛠 Tools and Framework
 
 -   **CLI**: `mbenchmark` is your primary interface for running evaluations.
--   **Taxonomy**: The core of this project is the cybersecurity taxonomy in `src/model_benchmarking/taxonomy/`.
+-   **Taxonomy**: The core of this project is the cybersecurity taxonomy in `src/runtime/taxonomy/`.
 -   **Providers**: We support Ollama, OpenAI, and Anthropic via a standardized provider interface.
 
 ---

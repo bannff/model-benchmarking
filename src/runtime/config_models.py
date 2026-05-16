@@ -9,16 +9,24 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator
 
 
+from .constants import (
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_MODEL,
+    DEFAULT_CYBERGYM_SERVER,
+    DEFAULT_OUTPUT_DIR,
+)
+
+
 class ProviderConfig(BaseModel):
     name: Literal["ollama", "strands-ollama", "mock"] = Field(default="ollama")
-    model: str = Field(default="llama3.2")
-    host: Optional[str] = Field(default="http://localhost:11434")
+    model: str = Field(default=DEFAULT_MODEL)
+    host: Optional[str] = Field(default=DEFAULT_OLLAMA_HOST)
 
 
 class PipelineConfig(BaseModel):
     categories: Optional[List[str]] = None
     max_questions: Optional[int] = None
-    output_dir: str = Field(default="results")
+    output_dir: str = Field(default=DEFAULT_OUTPUT_DIR)
     verbose: bool = Field(default=False)
     use_strands_telemetry: bool = Field(default=False)
     skip_cs_eval: bool = Field(default=False)
@@ -39,7 +47,7 @@ class CSEvalConfig(BaseModel):
 
 class CyberGymConfig(BaseModel):
     mode: Literal["sim", "server"] = Field(default="sim")
-    server_url: str = Field(default="http://localhost:8666")
+    server_url: str = Field(default=DEFAULT_CYBERGYM_SERVER)
     data_dir: Optional[str] = None
     difficulty: str = Field(default="level1")
 

@@ -13,7 +13,7 @@
 ## ✨ Engineering Prestige
 
 This repository adheres to the strict **Python-Factory Standard**, making it an optimal environment for both human engineers and AI agents:
-1. **Clean Architecture**: Strict separation of concerns between `src/mcp/` (adapters, CLI, and external tools) and `src/runtime/` (core domain evaluation logic).
+1. **Clean Architecture**: Strict separation of concerns between `src/model_benchmarking_cli/` (adapters, CLI, and external tools) and `src/runtime/` (core domain evaluation logic).
 2. **Strict Component Limits**: Formally enforced `<200 LOC` module compliance for frictionless AI agent collaboration and cognitive load reduction.
 3. **Property-Based QA**: End-to-end evaluation determinism secured by `pytest` workflows and `hypothesis` generative fuzzing constraints. 
 4. **Agent Control Plane**: Fully governed by `.agents/` workflows and `.beads/` tracking for out-of-the-box MCP integration and autonomous maintenance loops.
@@ -31,14 +31,14 @@ cd model-benchmarking
 python3 -m venv .venv && source .venv/bin/activate
 
 # Install with robust development and testing tools
-pip install -e "." -r requirements-dev.txt
+pip install -e "."
 ```
 
 ### 2️⃣ Run Your First Eval
 
 ```bash
 # Execute a mathematically-pure pipeline dry-run relying on the mock provider
-mbenchmark pipeline --provider mock --skip-cs-eval
+mbenchmark pipeline --dry-run
 ```
 
 ---
@@ -49,17 +49,17 @@ The repository evaluates targets by fusing dynamic benchmarking environments wit
 
 ```mermaid
 graph TD
-    CLI[src/mcp/cli.py] --> EVALS[src/runtime/evals/]
+    CLI[src/model_benchmarking_cli/cli/] --> PIPELINE[src/model_benchmarking_cli/pipeline.py]
+    PIPELINE -- Async Orchestration --> SUITES[src/runtime/suites/]
     
-    EVALS --> TAXONOMY[src/runtime/taxonomy/]
-    EVALS --> PROVIDERS[src/runtime/providers/]
-    EVALS --> SUITES[src/runtime/suites/]
+    SUITES --> TAXONOMY[src/runtime/taxonomy/]
+    SUITES --> PROVIDERS[src/runtime/providers/]
     
     TAXONOMY --> REGISTRY[(Registry Configs)]
-    SUITES --> TARGETS((Target LLMs))
+    PROVIDERS --> TARGETS((Target LLMs))
     
     style CLI fill:#a2d2ff,stroke:#111,stroke-width:2px,color:#000
-    style EVALS fill:#bde0fe,stroke:#111,stroke-width:2px,color:#000
+    style PIPELINE fill:#bde0fe,stroke:#111,stroke-width:2px,color:#000
     style TAXONOMY fill:#ffc8dd,stroke:#111,stroke-width:2px,color:#000
     style SUITES fill:#ffafcc,stroke:#111,stroke-width:2px,color:#000
 ```

@@ -11,14 +11,22 @@ import requests
 import httpx
 
 
+from runtime.constants import (
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_TEMPERATURE,
+    DEFAULT_TOP_P,
+    DEFAULT_MAX_TOKENS,
+)
+
+
 class OllamaHttpProvider:
     def __init__(
         self,
         model: str,
-        base_url: str = "http://localhost:11434",
-        temperature: float = 0.1,
-        top_p: float = 0.9,
-        max_tokens: int = 256,
+        base_url: str = DEFAULT_OLLAMA_HOST,
+        temperature: float = DEFAULT_TEMPERATURE,
+        top_p: float = DEFAULT_TOP_P,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout: int = 60,
     ) -> None:
         self.model = model

@@ -26,5 +26,5 @@ class BaseSuite(Protocol):
 
     name: str
 
-    def run(self, *, provider: Any, output_dir: str, **kwargs: Any) -> SuiteOutcome:
+    async def run(self, *, provider: Any, output_dir: str, **kwargs: Any) -> SuiteOutcome:
         ...
