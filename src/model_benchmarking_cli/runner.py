@@ -1,7 +1,12 @@
-import os
-import subprocess
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Any, Callable, Dict, Optional
+
+from runtime.config import load_config_file
+from runtime.config_models import RootConfig
+from runtime.providers.factory import make_provider
+from runtime.suites.cs_eval import CSEvalSuite
+from runtime.suites.cybergym import CyberGymSuite
+from runtime.suites.cve_bench import CVEBenchSuite
 
 
 @dataclass
@@ -9,54 +14,83 @@ class BenchmarkResult:
     name: str
     status: str
     output_path: Optional[str] = None
+_SUITE_ALIASES = {
+    "cs-eval": "cs-eval",
+    "cseval": "cs-eval",
+    "cybersec-quiz": "cybersec-quiz",
+    "quiz": "cybersec-quiz",
+    "cybersec": "cybersec-quiz",
+    "cve-bench": "cve-bench",
+    "cve": "cve-bench",
+}
 
 
-def _run_script(script_path: str, args: Optional[List[str]] = None) -> int:
-    args = list(args) if args else []
-    # run script from repo root so relative paths in scripts continue to work
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    full_script = os.path.join(repo_root, script_path)
-    if not os.path.exists(full_script):
-        raise FileNotFoundError(full_script)
-    cmd = ["python", full_script] + list(args)
-    proc = subprocess.run(cmd, cwd=repo_root)
-    return proc.returncode
+def _suite_runner(suite: str) -> Callable[..., Any]:
+    runners: dict[str, Callable[..., Any]] = {
+        "cs-eval": CSEvalSuite,
+        "cybergym": CyberGymSuite,
+        "cve-bench": CVEBenchSuite,
+    }
+    if suite == "cybersec-quiz":
+        raise ValueError(
+            "The legacy cybersec quiz entrypoint is kept only as a local demo helper; "
+            "it is no longer dispatched through this compatibility API."
+        )
+    runner = runners.get(suite)
+    if runner is None:
+        raise ValueError(f"Unknown suite: {suite}")
+    return runner
 
 
 def run_benchmark(suite: str, config_path: Optional[str] = None, test_mode: bool = False) -> BenchmarkResult:
-    """Run a benchmark suite by invoking existing scripts (shim).
+    """Run a benchmark suite through the current adapter layer.
 
-    This keeps the original suite folders intact while providing a
-    stable Python API.
+    The legacy public API is kept for compatibility, but execution now goes
+    through the same suite adapters used by the main pipeline instead of stale
+    repo-relative shell scripts.
     """
-    suite = suite.lower()
-    if test_mode:
-        # In test mode, return a lightweight deterministic result without shelling out.
-        return BenchmarkResult(name=suite, status="ok", output_path=None)
-    if suite in ("cs-eval", "cseval"):
-        # call the generic cs-eval runner
-        rc = _run_script(
-            "benchmarking/cs-eval/run_evaluation.py",
-            [
-                "--categories",
-                "Network Security",
-                "--max_questions",
-                "2",
-                "--batch_size",
-                "2",
-                "--verbose",
-            ],
-        )
-        status = "ok" if rc == 0 else "failed"
-        return BenchmarkResult(name="cs-eval", status=status)
-    elif suite in ("cybersec-quiz", "quiz", "cybersec"):
-        rc = _run_script("benchmark-test/cybersec_quiz.py")
-        status = "ok" if rc == 0 else "failed"
-        return BenchmarkResult(name="cybersec_quiz", status=status)
-    elif suite in ("cve-bench", "cve"):
-        # use the run helper in cve-bench once setup
-        rc = _run_script("benchmarking/cve-bench/run", ["eval"])  # default eval
-        status = "ok" if rc == 0 else "failed"
-        return BenchmarkResult(name="cve-bench", status=status)
-    else:
+    suite_key = _SUITE_ALIASES.get(suite.lower())
+    if suite_key is None:
         raise ValueError(f"Unknown suite: {suite}")
+    if test_mode:
+        return BenchmarkResult(name=suite_key, status="ok", output_path=None)
+
+    raw_cfg = load_config_file(config_path)
+    if not raw_cfg:
+        raw_cfg = {"provider": {"name": "mock", "model": "mock"}}
+    validated = RootConfig.model_validate(raw_cfg)
+
+    provider_cfg = validated.provider
+    provider = make_provider(
+        provider_cfg.name,
+        model=provider_cfg.model,
+        host=provider_cfg.host or "http://localhost:11434",
+        use_strands=(provider_cfg.name == "strands-ollama"),
+    )
+
+    output_dir = str(validated.pipeline.output_dir)
+    runner_cls = _suite_runner(suite_key)
+    kwargs: Dict[str, Any] = {"provider": provider, "output_dir": output_dir}
+    if runner_cls is CSEvalSuite:
+        kwargs.update(
+            {
+                "categories": validated.pipeline.categories,
+                "max_questions": validated.pipeline.max_questions,
+                "verbose": validated.pipeline.verbose,
+                "cs_eval_config": validated.cs_eval.model_dump(),
+            }
+        )
+    elif runner_cls is CyberGymSuite:
+        kwargs.update(
+            {
+                "max_items": validated.pipeline.max_questions,
+                "cybergym_config": validated.cybergym.model_dump(),
+            }
+        )
+    else:
+        kwargs.update({"cvebench_config": validated.cvebench.model_dump()})
+
+    import asyncio
+
+    outcome = asyncio.run(runner_cls().run(**kwargs))
+    return BenchmarkResult(name=outcome.name, status=outcome.status, output_path=outcome.results_path)

@@ -5,6 +5,8 @@ These models provide structure and early error reporting for pipeline and suites
 """
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator
 
@@ -26,7 +28,7 @@ class ProviderConfig(BaseModel):
 class PipelineConfig(BaseModel):
     categories: Optional[List[str]] = None
     max_questions: Optional[int] = None
-    output_dir: str = Field(default=DEFAULT_OUTPUT_DIR)
+    output_dir: Path = Field(default=DEFAULT_OUTPUT_DIR)
     verbose: bool = Field(default=False)
     use_strands_telemetry: bool = Field(default=False)
     skip_cs_eval: bool = Field(default=False)
@@ -40,20 +42,38 @@ class PipelineConfig(BaseModel):
             raise ValueError("max_questions must be > 0 if provided")
         return v
 
+    @field_validator("output_dir")
+    @classmethod
+    def validate_output_dir(cls, v: Path) -> Path:
+        if v.exists() and not os.access(v, os.W_OK):
+            raise ValueError(f"Output directory '{v}' is not writable")
+        # If it doesn't exist, we assume it can be created, 
+        # but check parent if possible
+        if not v.exists() and v.parent.exists() and not os.access(v.parent, os.W_OK):
+            raise ValueError(f"Parent of output directory '{v}' is not writable")
+        return v
+
 
 class CSEvalConfig(BaseModel):
-    local_sample_path: Optional[str] = None
+    local_sample_path: Optional[Path] = None
+
+    @field_validator("local_sample_path")
+    @classmethod
+    def validate_local_sample_path(cls, v: Optional[Path]) -> Optional[Path]:
+        if v is not None and not v.exists():
+            raise ValueError(f"Local sample path '{v}' does not exist")
+        return v
 
 
 class CyberGymConfig(BaseModel):
     mode: Literal["sim", "server"] = Field(default="sim")
     server_url: str = Field(default=DEFAULT_CYBERGYM_SERVER)
-    data_dir: Optional[str] = None
+    data_dir: Optional[Path] = None
     difficulty: str = Field(default="level1")
 
 
 class CVEBenchConfig(BaseModel):
-    repo_root: Optional[str] = None
+    repo_root: Optional[Path] = None
     model: Optional[str] = None
     targets: List[str] = Field(default_factory=list)
 

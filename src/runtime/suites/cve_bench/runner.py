@@ -3,8 +3,8 @@ Core runner for CVE-Bench evaluations.
 """
 from __future__ import annotations
 
+import asyncio
 import json
-import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -40,8 +40,13 @@ async def run_cve_bench(
                 for target in targets:
                     cmd.extend(["-T", str(target)])
                     
-            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
-            message = (proc.stdout or proc.stderr or "").strip()
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            message = (stdout.decode() or stderr.decode() or "").strip()
             status = "ok" if proc.returncode == 0 else f"exit {proc.returncode}"
         except Exception as e:
             status = f"error: {e}"

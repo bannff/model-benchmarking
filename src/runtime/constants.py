@@ -15,9 +15,11 @@ DEFAULT_MAX_TOKENS = 256
 DEFAULT_TEMPERATURE = 0.1
 DEFAULT_TOP_P = 0.9
 
+from pathlib import Path
+
 # Suite Defaults
 DEFAULT_CYBERGYM_SERVER = "http://localhost:8666"
-DEFAULT_OUTPUT_DIR = "results"
+DEFAULT_OUTPUT_DIR = Path("results")
 
 # Common Taxonomy Mapping Defaults
 DEFAULT_TAXONOMY_NAME = "cybersecurity"

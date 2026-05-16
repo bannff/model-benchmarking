@@ -8,9 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
-from pathlib import Path
-import importlib.util
 import os
+import warnings
 
 from runtime.utils.result_schema import ResultEnvelope, write_manifest, append_index, iso_now
 from runtime.suites.cs_eval import CSEvalSuite
@@ -27,6 +26,66 @@ class PipelineStepResult:
     metrics: Optional[Dict[str, Any]] = None
 
 
+def _step_from_outcome(outcome: Any) -> PipelineStepResult:
+    return PipelineStepResult(
+        name=outcome.name,
+        status=outcome.status,
+        results_path=outcome.results_path,
+        metrics=outcome.metrics,
+    )
+
+
+async def _run_step(adapter: Any, **kwargs: Any) -> PipelineStepResult:
+    outcome = await adapter.run(**kwargs)
+    return _step_from_outcome(outcome)
+
+
+def _append_failure(results: List[PipelineStepResult], name: str, exc: Exception) -> None:
+    results.append(PipelineStepResult(name=name, status=f"failed: {exc}"))
+
+
+def _write_pipeline_artifacts(
+    *,
+    provider: Any,
+    output_dir: str,
+    run_id: str,
+    started_at: str,
+    env_snapshot: Dict[str, Any],
+    results: List[PipelineStepResult],
+) -> None:
+    overall_status = "ok" if all(r.status == "ok" or r.status == "skipped" for r in results) else "failed"
+    artifacts: Dict[str, Any] = {
+        "steps": [
+            {
+                "name": r.name,
+                "status": r.status,
+                "results_path": r.results_path,
+                "metrics": r.metrics,
+            }
+            for r in results
+        ],
+        "env": env_snapshot,
+    }
+    envelope = ResultEnvelope(
+        run_id=run_id,
+        suite="pipeline",
+        model=str(getattr(provider, "model", "unknown")),
+        provider=provider.__class__.__name__,
+        started_at=started_at,
+        finished_at=iso_now(),
+        status=overall_status,
+        metrics={
+            "steps_ok": sum(1 for r in results if r.status == "ok"),
+            "steps_skipped": sum(1 for r in results if r.status == "skipped"),
+            "steps_failed": sum(1 for r in results if r.status not in ("ok", "skipped")),
+        },
+        artifacts=artifacts,
+    )
+    os.makedirs(output_dir, exist_ok=True)
+    write_manifest(envelope, output_dir)
+    append_index(envelope, output_dir)
+
+
 def _maybe_setup_strands_telemetry(enable: bool) -> None:
     if not enable:
         return
@@ -37,9 +96,8 @@ def _maybe_setup_strands_telemetry(enable: bool) -> None:
         telemetry.setup_console_exporter()  # type: ignore[attr-defined]
         telemetry.setup_otlp_exporter()  # type: ignore[attr-defined]
         telemetry.setup_meter(enable_console_exporter=True, enable_otlp_exporter=True)  # type: ignore[attr-defined]
-    except Exception:
-        # Don't fail pipeline just because telemetry isn't configured
-        pass
+    except Exception as exc:
+        warnings.warn(f"Strands telemetry disabled: {exc}", RuntimeWarning, stacklevel=2)
 
 
 async def run_pipeline(
@@ -73,9 +131,8 @@ async def run_pipeline(
     # CS-Eval
     if not skip_cs_eval:
         try:
-            # Use the adapter to keep logic encapsulated
-            cs_adapter = CSEvalSuite()
-            cs = await cs_adapter.run(
+            cs = await _run_step(
+                CSEvalSuite(),
                 provider=provider,
                 categories=categories,
                 max_questions=max_questions,
@@ -83,16 +140,9 @@ async def run_pipeline(
                 verbose=verbose,
                 cs_eval_config=cs_eval_config,
             )
-            results.append(
-                PipelineStepResult(
-                    name=cs.name,
-                    status=cs.status,
-                    results_path=cs.results_path,
-                    metrics=cs.metrics,
-                )
-            )
+            results.append(cs)
         except Exception as e:
-            results.append(PipelineStepResult(name="cs-eval", status=f"failed: {e}"))
+            _append_failure(results, "cs-eval", e)
             return results  # stop early if CS-Eval fails
     else:
         results.append(PipelineStepResult(name="cs-eval", status="skipped"))
@@ -102,83 +152,42 @@ async def run_pipeline(
         results.append(PipelineStepResult(name="cybergym", status="skipped"))
     else:
         try:
-            cg_adapter = CyberGymSuite()
-            cg = await cg_adapter.run(
+            cg = await _run_step(
+                CyberGymSuite(),
                 provider=provider,
                 output_dir=output_dir,
                 max_items=max_questions,
                 cybergym_config=cybergym_config,
             )
-            results.append(
-                PipelineStepResult(
-                    name=cg.name,
-                    status=cg.status,
-                    results_path=cg.results_path,
-                    metrics=cg.metrics,
-                )
-            )
+            results.append(cg)
         except Exception as e:
-            results.append(PipelineStepResult(name="cybergym", status=f"failed: {e}"))
+            _append_failure(results, "cybergym", e)
 
     # CVE-Bench
     if skip_cvebench:
         results.append(PipelineStepResult(name="cve-bench", status="skipped"))
     else:
         try:
-            cb_adapter = CVEBenchSuite()
-            cb = await cb_adapter.run(
+            cb = await _run_step(
+                CVEBenchSuite(),
                 provider=provider,
                 output_dir=output_dir,
                 cvebench_config=cvebench_config,
             )
-            results.append(
-                PipelineStepResult(
-                    name=cb.name,
-                    status=cb.status,
-                    results_path=cb.results_path,
-                    metrics=cb.metrics,
-                )
-            )
+            results.append(cb)
         except Exception as e:
-            results.append(PipelineStepResult(name="cve-bench", status=f"failed: {e}"))
+            _append_failure(results, "cve-bench", e)
 
-    # Write manifest and index in output_dir capturing high-level pipeline run
     try:
-        # Aggregate simple top-level metrics and artifacts
-        overall_status = "ok" if all(r.status == "ok" or r.status == "skipped" for r in results) else "failed"
-        artifacts: Dict[str, Any] = {
-            "steps": [
-                {
-                    "name": r.name,
-                    "status": r.status,
-                    "results_path": r.results_path,
-                    "metrics": r.metrics,
-                }
-                for r in results
-            ],
-            "env": env_snapshot,
-        }
-        envelope = ResultEnvelope(
+        _write_pipeline_artifacts(
+            provider=provider,
+            output_dir=output_dir,
             run_id=run_id,
-            suite="pipeline",
-            model=str(getattr(provider, "model", "unknown")),
-            provider=provider.__class__.__name__,
             started_at=started_at,
-            finished_at=iso_now(),
-            status=overall_status,
-            metrics={
-                "steps_ok": sum(1 for r in results if r.status == "ok"),
-                "steps_skipped": sum(1 for r in results if r.status == "skipped"),
-                "steps_failed": sum(1 for r in results if r.status not in ("ok", "skipped")),
-            },
-            artifacts=artifacts,
+            env_snapshot=env_snapshot,
+            results=results,
         )
-        # Write under output_dir (no per-run subdir yet to preserve current suite outputs)
-        os.makedirs(output_dir, exist_ok=True)
-        write_manifest(envelope, output_dir)
-        append_index(envelope, output_dir)
-    except Exception:
-        # Never fail the pipeline return because manifest writing failed
-        pass
+    except Exception as exc:
+        warnings.warn(f"Pipeline manifest write skipped: {exc}", RuntimeWarning, stacklevel=2)
 
     return results

@@ -1,5 +1,5 @@
 import click  # type: ignore[reportMissingImports]
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 @click.group()
 def main():
@@ -13,12 +13,17 @@ main = cast(Any, main)
 @click.option("--suite", default="cs-eval", help="Which suite to run (cs-eval|cve-bench|cybergym)")
 @click.option("--config", default=None, help="Path to config YAML")
 @click.option("--test/--no-test", default=False, help="Run in test mode (no external commands)")
-def run(suite: str, config: str | None, test: bool):
+def run(suite: str, config: Optional[str], test: bool):
     """Run a benchmark suite"""
     from .. import runner
     import sys
     try:
-        runner.run_benchmark(suite, config, test_mode=test)
+        result = runner.run_benchmark(suite, config, test_mode=test)
+        if result.output_path:
+            click.echo(f"Output: {result.output_path}")
+        if result.status != "ok":
+            click.echo(f"Benchmark finished with status: {result.status}")
+            sys.exit(1)
     except Exception as e:
         click.echo(f"Error running benchmark: {e}")
         sys.exit(2)

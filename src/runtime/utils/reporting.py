@@ -33,8 +33,6 @@ def save_suite_results(
         filename = f"{suite_name}_results.json"
         
     file_path = out_path / filename
-    
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, default=str)
+    file_path.write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")
         
     return str(file_path.resolve())
