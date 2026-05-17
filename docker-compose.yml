@@ -3,9 +3,16 @@ services:
   mbenchmark:
     build: .
     volumes:
-      - ./:/workspace:cached
-      # Mount evaluator scripts for CVE-Bench if you run those suites
-      - /path/to/host/evaluator-scripts:/evaluator/scripts:ro
+      # Source tree mounted read-only by default to prevent in-container suites
+      # (especially CVE-Bench / CyberGym) from mutating the host repo or .git.
+      - ./:/workspace:ro
+      # Results are the only writable surface; create ./results on the host first.
+      - ./results:/workspace/results:rw
+      # Evaluator scripts for CVE-Bench. Set EVALUATOR_SCRIPTS_DIR before running,
+      # e.g. `EVALUATOR_SCRIPTS_DIR=$(pwd)/evaluator-scripts docker compose up`.
+      # The `:?` form makes Compose fail fast if the var is unset, so we never
+      # silently create a stray directory on the host.
+      - ${EVALUATOR_SCRIPTS_DIR:?set EVALUATOR_SCRIPTS_DIR to your CVE-Bench evaluator scripts path}:/evaluator/scripts:ro
     tty: true
     stdin_open: true
     command: ["run","--suite","cs-eval"]

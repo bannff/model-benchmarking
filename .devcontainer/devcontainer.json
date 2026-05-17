@@ -5,7 +5,9 @@
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "overrideCommand": true,
   "runArgs": ["--init"],
-  "postCreateCommand": "git config --global user.name \"Daniel Rodrigo\" && git config --global user.email \"bannff@users.noreply.github.com\" && pip install --upgrade pip setuptools wheel && pip install -r requirements-dev.txt || pip install . || true",
+  "remoteUser": "appuser",
+  "updateRemoteUserUID": true,
+  "postCreateCommand": "pip install --user --upgrade pip setuptools wheel && (pip install --user -r requirements-dev.txt || pip install --user . || true)",
   "customizations": {
     "vscode": {
       "settings": {
@@ -17,6 +19,5 @@
         "github.vscode-pull-request-github"
       ]
     }
-  },
-  "remoteUser": "root"
+  }
 }

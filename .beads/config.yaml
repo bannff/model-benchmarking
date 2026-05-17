@@ -10,11 +10,30 @@ session:
 hooks:
   enabled: true
   path: ".beads/hooks/"
-  
+
 metadata:
   include_git_info: true
-  include_env_info: true
-  
+  # Disabled by default: process env may carry secrets (OPENAI_API_KEY, AWS_*, etc.).
+  # If enabled, the sync layer MUST redact any var matching *KEY*|*TOKEN*|*SECRET*|*PASSWORD*.
+  include_env_info: false
+
 sync:
-  auto_sync: true
+  # Auto-sync is opt-in. Operators must explicitly enable network egress and
+  # confirm the redaction policy above is in place before flipping this flag.
+  auto_sync: false
   endpoint: "https://api.bannff.ai/beads/sync"
+
+# Redaction policy applied to any payload destined for `sync.endpoint`.
+# Keys whose name matches any of these (case-insensitive) must be stripped
+# or replaced with "[REDACTED]" before transmission.
+redaction:
+  enabled: true
+  patterns:
+    - "(?i).*key.*"
+    - "(?i).*token.*"
+    - "(?i).*secret.*"
+    - "(?i).*password.*"
+    - "(?i).*passwd.*"
+    - "(?i).*credential.*"
+    - "(?i)authorization"
+    - "(?i)bearer"

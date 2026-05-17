@@ -4,24 +4,39 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-large-files:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Find large files
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          # fail if any committed file in the PR is larger than 50MB
+          set -euo pipefail
+          # Fail if any committed file in the PR is larger than 50MB.
           MAX=52428800
-          set -e
-          git fetch --depth=1 origin ${{ github.base_ref }} || true
-          for f in $(git diff --name-only origin/${{ github.base_ref }}...HEAD); do
-            if [ -f "$f" ]; then
-              size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
-              if [ "$size" -gt "$MAX" ]; then
-                echo "File $f is too large ($size bytes) — please use Git LFS or external storage." >&2
-                exit 1
-              fi
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          changed=$(git diff --name-only "origin/${BASE_REF}...HEAD")
+          if [ -z "$changed" ]; then
+            echo "No changed files to inspect."
+            exit 0
+          fi
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+            if [ "$size" -gt "$MAX" ]; then
+              echo "::error file=$f::File is $size bytes (max $MAX) — please use Git LFS or external storage."
+              exit 1
             fi
-          done
+          done <<< "$changed"
           echo "No large files found."

@@ -1,0 +1,16 @@
+# gitleaks config for model-benchmarking.
+# Extends the default ruleset with project-specific allowlists for
+# intentional vulnerable-content fixtures.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional vulnerable-content fixtures and rotated tokens"
+paths = [
+  # CVE-Bench / Cacti SQL dumps contain default RSA install keys as bait.
+  '''sanitized_db/.*''',
+  # SECURITY.md documents the rotated tokens by name.
+  '''SECURITY\.md''',
+  # Documentation placeholders like LETTA_API_KEY=your_api_key_here.
+  '''docs/letta-eval/.*''',
+]

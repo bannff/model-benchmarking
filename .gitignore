@@ -121,3 +121,30 @@ PyScience/adapters/
 
 # Ignore Beast Mode instructions file only
 .github/instructions/Beast Mode.instructions.md
+
+# Secrets and credentials (defense-in-depth)
+# Never commit secret-bearing files. Real secrets belong in env vars or a vault.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+.netrc
+.npmrc
+.pypirc
+credentials.json
+service-account*.json
+gcloud-key.json
+.aws/
+.gcp/
+secrets/
+*.tfvars
+*.tfstate
+*.tfstate.backup

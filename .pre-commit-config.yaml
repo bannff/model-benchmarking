@@ -1,0 +1,29 @@
+# Pre-commit hooks for model-benchmarking.
+# Install once with: `pip install pre-commit && pre-commit install`
+# Run on demand with: `pre-commit run --all-files`
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        name: gitleaks (block hardcoded secrets)
+        args: ["protect", "--staged", "--config=.gitleaks.toml", "--redact"]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: detect-private-key
+        name: block committed private keys
+      - id: check-added-large-files
+        args: ["--maxkb=10240"]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: ["--fix"]
